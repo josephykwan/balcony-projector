@@ -161,7 +161,7 @@ class Config:
 
     @property
     def media_dir(self):
-        return os.path.expanduser(self.data["media_dir"])
+        return os.path.abspath(os.path.expanduser(self.data["media_dir"]))
 
 
 class State:
@@ -1206,6 +1206,7 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
     app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "templates"))
     app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 ** 3
     app.config["JSON_SORT_KEYS"] = False
+    app.config["TEMPLATES_AUTO_RELOAD"] = True     # edits to index.html show without a restart
     started_at = time.time()
 
     def fail(message, code=400):
@@ -1314,10 +1315,13 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
 
     @app.route("/api/thumb/<playlist>/<path:name>")
     def api_thumb(playlist, name):
-        path = lib.thumb_path(playlist, library.safe_filename(name))
+        path = os.path.abspath(lib.thumb_path(playlist, library.safe_filename(name)))
         if not os.path.isfile(path):
             return fail("No picture yet.", 404)
-        response = send_file(path, mimetype="image/jpeg", conditional=True)
+        try:
+            response = send_file(path, mimetype="image/jpeg", conditional=True)
+        except OSError:
+            return fail("No picture yet.", 404)
         response.headers["Cache-Control"] = "private, max-age=300"
         return response
 

@@ -7,6 +7,11 @@ evening schedule, make a slide, and turn the projector on and off.
 Nothing but the video is ever drawn on the screen. If something goes wrong, the
 phone page tells you what to do.
 
+![The phone page](docs/screenshots/home.png)
+
+More: [manage videos](docs/screenshots/manage-videos.png),
+[make a slide](docs/screenshots/make-a-slide.png), [settings](docs/screenshots/settings.png).
+
 ## What you need
 
 - Raspberry Pi 4 with Raspberry Pi OS Lite (64-bit). No desktop.

@@ -81,7 +81,7 @@ class Library:
 
     @property
     def media_dir(self):
-        return os.path.expanduser(self.cfg.data["media_dir"])
+        return os.path.abspath(os.path.expanduser(self.cfg.data["media_dir"]))
 
     def folder(self, name):
         return os.path.join(self.media_dir, name)
@@ -596,7 +596,13 @@ class Processor:
                         it["fp"] = it.get("fp") or fp
                         to_queue.append(key)
                         continue
-                    if status in ("ready", "waiting"):
+                    if status == "waiting":
+                        if wanted_disclaimer:          # the strip exists now
+                            it["status"] = "queued"
+                            changed = True
+                            to_queue.append(key)
+                        continue
+                    if status == "ready":
                         done = it.get("rendered_with") or {}
                         want = self._wanted(it, spec, wanted_disclaimer)
                         if done != want:

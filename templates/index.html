@@ -14,6 +14,7 @@
     --danger: #d9534f; --ok: #5cb85c; --warn: #f0ad4e;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; background: var(--bg); color: var(--text);
     font: 17px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-text-size-adjust: 100%; }
@@ -30,8 +31,8 @@
   .label { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
   .big { font-size: 24px; font-weight: 650; margin: 0; }
   .muted { color: var(--muted); font-size: 15px; }
-  .row { display: flex; gap: 10px; margin-top: 12px; }
-  .row > * { flex: 1; min-width: 0; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .row > * { flex: 1 1 140px; min-width: 0; }
   button { appearance: none; border: 0; border-radius: 12px; min-height: 52px; padding: 10px 14px;
     font: inherit; font-weight: 600; color: var(--text); background: var(--card-2); cursor: pointer; touch-action: manipulation; }
   button:active { filter: brightness(1.2); }
@@ -63,7 +64,7 @@
   input[type=range] { width: 100%; margin: 8px 0 0; accent-color: var(--accent); }
   input[type=text], input[type=time], input[type=password], input[type=number], input[type=date], input[type=color], input[type=url], select, textarea {
     width: 100%; font: inherit; color: var(--text); background: var(--card-2); border: 1px solid var(--line);
-    border-radius: 10px; padding: 11px 12px; min-height: 48px; }
+    border-radius: 10px; padding: 11px 12px; min-height: 48px; min-width: 0; max-width: 100%; }
   input[type=color] { padding: 4px; }
   input[type=time], input[type=date] { -webkit-appearance: none; }
   textarea { resize: vertical; min-height: 72px; }
@@ -210,7 +211,7 @@
     <div class="row"><button id="btn-slide" class="primary">Add this slide</button></div>
   </details>
 
-  <details class="card">
+  <details class="card" id="settings-card">
     <summary>Settings</summary>
 
     <div class="section">
@@ -954,6 +955,10 @@
   };
 
   // ---- go -----------------------------------------------------------------
+  // A link like /#slide-card opens that section (handy for bookmarks); several ids can be comma-separated.
+  const wantedIds = (location.hash || "").slice(1).split(",").filter(Boolean);
+  wantedIds.forEach((id) => { const el = document.getElementById(id); if (el && el.tagName === "DETAILS") el.open = true; });
+  if (wantedIds.length === 1) { const el = document.getElementById(wantedIds[0]); if (el) setTimeout(() => el.scrollIntoView(), 400); }
   refresh(); loadMedia(); loadSettings();
   setInterval(() => { if (!document.hidden) refresh(); }, 3000);
   setInterval(() => { if (!document.hidden) loadMedia(); }, 20000);
