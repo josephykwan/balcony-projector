@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-line installer for the Balcony Projector, run on the Pi:
 #
-#   curl -fsSL https://raw.githubusercontent.com/OWNER/balcony-projector/main/get.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/josephykwan/balcony-projector/main/get.sh | sudo bash
 #
 # It clones (or updates) the project into the invoking user's home folder and
 # runs install.sh with quiet boot, the projector cable, and the Dallas time zone.
@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-REPO="${REPO:-https://github.com/OWNER/balcony-projector.git}"
+REPO="${REPO:-https://github.com/josephykwan/balcony-projector.git}"
 BRANCH="${BRANCH:-main}"
 TIMEZONE="${TIMEZONE:-America/Chicago}"
 INSTALL_ARGS="${INSTALL_ARGS:---quiet-boot --projector-link --timezone $TIMEZONE}"

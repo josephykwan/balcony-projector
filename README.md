@@ -34,7 +34,7 @@ sudo ./install.sh --quiet-boot --projector-link --timezone America/Chicago
 Or, once the project is on GitHub, in one line (edit the OWNER in `get.sh` first):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/OWNER/balcony-projector/main/get.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/josephykwan/balcony-projector/main/get.sh | sudo bash
 ```
 
 - `--quiet-boot` hides the boot text and login prompt so the street only ever
