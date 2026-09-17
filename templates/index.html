@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Balcony Projector</title>
+<style>
+  :root {
+    --bg: #0f1115; --card: #181b22; --card-2: #20242d; --line: #2b303b;
+    --text: #e8e9ee; --muted: #9aa0ad; --accent: #f2a33a; --accent-text: #1a1206;
+    --danger: #d9534f; --ok: #5cb85c; --warn: #f0ad4e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 17px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-text-size-adjust: 100%; }
+  body { padding: env(safe-area-inset-top) 0 calc(24px + env(safe-area-inset-bottom)); }
+  header { display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 16px 8px; }
+  h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  .pill { font-size: 14px; padding: 5px 11px; border-radius: 999px; background: var(--card-2);
+    color: var(--muted); white-space: nowrap; }
+  .pill.on { background: #223522; color: #9be39b; }
+  .pill.paused { background: #3a3220; color: #f5d08a; }
+  .pill.bad { background: #3a2222; color: #f2a0a0; }
+  main { padding: 0 16px; display: grid; gap: 14px; max-width: 560px; margin: 0 auto; }
+  .card { background: var(--card); border-radius: 16px; padding: 16px; }
+  .label { font-size: 13px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); margin-bottom: 8px; }
+  .big { font-size: 24px; font-weight: 650; margin: 0; }
+  .muted { color: var(--muted); font-size: 15px; }
+  .row { display: flex; gap: 10px; margin-top: 12px; }
+  .row > * { flex: 1; }
+  button { appearance: none; border: 0; border-radius: 12px; min-height: 52px; padding: 10px 14px;
+    font: inherit; font-weight: 600; color: var(--text); background: var(--card-2); cursor: pointer;
+    touch-action: manipulation; }
+  button:active { filter: brightness(1.2); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: var(--accent-text); }
+  button.danger { background: #3a2222; color: #f2a0a0; }
+  button.small { min-height: 40px; padding: 6px 12px; font-size: 15px; font-weight: 500; }
+  .list { display: grid; gap: 8px; }
+  .item { display: flex; align-items: center; gap: 10px; background: var(--card-2);
+    border-radius: 12px; padding: 12px 14px; min-height: 56px; }
+  .item.playable { cursor: pointer; }
+  .item.playing { outline: 2px solid var(--accent); }
+  .item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .sub { color: var(--muted); font-size: 14px; }
+  .item .name b { display: block; font-weight: 600; }
+  .item .go { color: var(--accent); font-weight: 700; font-size: 20px; }
+  .progress { height: 6px; background: var(--card-2); border-radius: 3px; margin-top: 12px; overflow: hidden; }
+  .progress > div { height: 100%; width: 0; background: var(--accent); transition: width .5s linear; }
+  #problems { background: #3b2d14; border: 1px solid #6b5220; }
+  #problems .label { color: #f5d08a; }
+  #problems p { margin: 6px 0 0; font-size: 15px; }
+  input[type=range] { width: 100%; margin: 8px 0 0; accent-color: var(--accent); }
+  input[type=text], input[type=time], input[type=password], input[type=number], select {
+    width: 100%; font: inherit; color: var(--text); background: var(--card-2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 11px 12px; min-height: 48px; }
+  input[type=time] { -webkit-appearance: none; }
+  label.field { display: block; margin-top: 12px; font-size: 15px; color: var(--muted); }
+  label.field > * { margin-top: 5px; }
+  label.check { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 16px; }
+  label.check input { width: 22px; height: 22px; accent-color: var(--accent); margin: 0; }
+  details.card > summary { cursor: pointer; font-weight: 600; list-style: none; display: flex;
+    justify-content: space-between; }
+  details.card > summary::after { content: "+"; color: var(--muted); }
+  details[open].card > summary::after { content: "–"; }
+  details.card > summary::-webkit-details-marker { display: none; }
+  .section { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 14px; }
+  .section h3 { margin: 0 0 6px; font-size: 16px; }
+  pre { background: #0b0d11; color: #b9bfcc; font-size: 12px; padding: 12px; border-radius: 10px;
+    overflow: auto; max-height: 260px; white-space: pre-wrap; word-break: break-word; }
+  #toast { position: fixed; left: 16px; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
+    background: #262b36; color: var(--text); padding: 14px 16px; border-radius: 12px; font-size: 15px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.5); opacity: 0; transform: translateY(10px);
+    transition: opacity .2s, transform .2s; pointer-events: none; max-width: 528px; margin: 0 auto; }
+  #toast.show { opacity: 1; transform: none; }
+  #toast.bad { background: #4a2424; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none;
+    align-items: center; justify-content: center; padding: 24px; }
+  .modal.show { display: flex; }
+  .modal .card { width: 100%; max-width: 360px; }
+  .hint { color: var(--muted); font-size: 14px; margin: 8px 0 0; }
+  .up { display: block; margin-top: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Balcony Projector</h1>
+  <div class="pill" id="pill">Connecting…</div>
+</header>
+
+<main>
+  <section class="card" id="problems" hidden>
+    <div class="label">Needs attention</div>
+    <div id="problem-list"></div>
+  </section>
+
+  <section class="card">
+    <div class="label">On the screen now</div>
+    <p class="big" id="now-title">Dark</p>
+    <div class="muted" id="now-sub">Nothing is playing.</div>
+    <div class="progress" id="now-progress" hidden><div id="now-bar"></div></div>
+    <div class="row">
+      <button id="btn-pause">Pause</button>
+      <button id="btn-next">Next</button>
+      <button id="btn-stop" class="danger">Go dark</button>
+    </div>
+    <label class="field">Volume <span id="volume-label"></span>
+      <input type="range" id="volume" min="0" max="100" step="5">
+    </label>
+  </section>
+
+  <section class="card">
+    <div class="label">Shows</div>
+    <div class="list" id="playlists"><div class="muted">Loading…</div></div>
+  </section>
+
+  <section class="card" id="projector-card">
+    <div class="label">Projector</div>
+    <p class="big" id="proj-state">Not controlled</p>
+    <div class="muted" id="proj-sub"></div>
+    <div class="row" id="proj-buttons" hidden>
+      <button id="btn-proj-on" class="primary">Turn on</button>
+      <button id="btn-proj-off">Turn off</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="label">Evening schedule</div>
+    <div class="muted" id="sched-summary"></div>
+    <label class="check"><input type="checkbox" id="sched-enabled"> Run a show every evening</label>
+    <div class="row">
+      <label class="field">Starts at <input type="time" id="sched-start"></label>
+      <label class="field">Ends at <input type="time" id="sched-end"></label>
+    </div>
+    <label class="field">Show <select id="sched-playlist"></select></label>
+    <label class="check"><input type="checkbox" id="sched-proj"> Also turn the projector on and off</label>
+    <div class="row"><button id="btn-save-sched" class="primary">Save schedule</button></div>
+  </section>
+
+  <details class="card" id="files-card">
+    <summary>Add or remove videos</summary>
+    <p class="hint">Files also work if you copy them straight into the media folder on the Pi:
+      <span id="media-dir"></span></p>
+    <label class="field">Playlist <select id="files-playlist"></select></label>
+    <label class="field">Upload a video or picture
+      <input type="file" id="file-input" class="up" accept="video/*,image/*">
+    </label>
+    <div class="row"><button id="btn-upload" class="primary">Upload</button></div>
+    <div class="progress" id="upload-progress" hidden><div id="upload-bar"></div></div>
+    <div class="list" id="files-list" style="margin-top:14px"></div>
+  </details>
+
+  <details class="card">
+    <summary>Settings</summary>
+
+    <div class="section">
+      <h3>Projector connection</h3>
+      <p class="hint">Uses the projector's network port (PJLink). The Pi is 192.168.50.1 on that cable.</p>
+      <label class="check"><input type="checkbox" id="set-proj-enabled"> Let this remote control the projector</label>
+      <label class="field">Projector address <input type="text" id="set-proj-host" placeholder="192.168.50.2"></label>
+      <label class="field">Projector password (leave blank if none)
+        <input type="password" id="set-proj-password" placeholder="unchanged" autocomplete="off"></label>
+      <label class="field">Input to select when it turns on
+        <select id="set-proj-input">
+          <option value="31">HDMI 1</option>
+          <option value="32">HDMI 2</option>
+          <option value="">Leave as is</option>
+        </select></label>
+    </div>
+
+    <div class="section">
+      <h3>Sound and pictures</h3>
+      <label class="field">Play sound through <select id="set-audio"></select></label>
+      <label class="field">Show each picture for (seconds) <input type="number" id="set-image-seconds" min="2" max="600"></label>
+    </div>
+
+    <div class="section">
+      <h3>PIN</h3>
+      <p class="hint">Anyone on your Wi-Fi can open this page. A PIN stops them changing things.</p>
+      <label class="field">New PIN (4 to 8 digits, blank to remove)
+        <input type="text" id="set-pin" inputmode="numeric" placeholder="unchanged" autocomplete="off"></label>
+    </div>
+
+    <div class="row"><button id="btn-save-settings" class="primary">Save settings</button></div>
+
+    <div class="section">
+      <h3>If something is stuck</h3>
+      <div class="row">
+        <button id="btn-restart">Restart the player</button>
+        <button id="btn-log">Show the log</button>
+      </div>
+      <pre id="log" hidden></pre>
+    </div>
+  </details>
+</main>
+
+<div id="toast"></div>
+
+<div class="modal" id="pin-modal">
+  <div class="card">
+    <div class="label">PIN</div>
+    <p style="margin:0 0 8px">This remote needs the PIN.</p>
+    <input type="text" id="pin-input" inputmode="numeric" autocomplete="off" placeholder="PIN">
+    <div class="row"><button class="primary" id="pin-ok">Unlock</button></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  let status = null, mediaInfo = null, settingsInfo = null;
+  let volumeTouch = false, lastVolumeSent = 0;
+
+  // ---- talking to the Pi --------------------------------------------------
+  function pin() { try { return localStorage.getItem("balcony-pin") || ""; } catch (e) { return ""; } }
+
+  async function api(path, body, opts) {
+    const init = Object.assign({ method: body === undefined ? "GET" : "POST", headers: {} }, opts || {});
+    if (pin()) init.headers["X-Pin"] = pin();
+    if (body !== undefined && !(body instanceof FormData)) {
+      init.headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(body);
+    } else if (body instanceof FormData) {
+      init.body = body;
+    }
+    let res;
+    try { res = await fetch(path, init); }
+    catch (e) { throw new Error("Can't reach the Pi. Are you on the same Wi-Fi?"); }
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* not json */ }
+    if (res.status === 401) { askPin(); throw new Error(data.error || "This remote needs the PIN."); }
+    if (!res.ok || data.ok === false) throw new Error(data.error || "Something went wrong on the Pi.");
+    return data;
+  }
+
+  async function act(path, body, okMessage) {
+    try {
+      const data = await api(path, body === undefined ? {} : body);
+      if (okMessage || data.message) toast(data.message || okMessage);
+      refresh();
+      return data;
+    } catch (e) { toast(e.message, true); }
+  }
+
+  // ---- toast and PIN ------------------------------------------------------
+  let toastTimer;
+  function toast(text, bad) {
+    const t = $("toast");
+    t.textContent = text; t.className = "show" + (bad ? " bad" : "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = ""; }, bad ? 6000 : 3500);
+  }
+  function askPin() { $("pin-modal").classList.add("show"); setTimeout(() => $("pin-input").focus(), 50); }
+  $("pin-ok").onclick = () => {
+    try { localStorage.setItem("balcony-pin", $("pin-input").value.trim()); } catch (e) {}
+    $("pin-modal").classList.remove("show");
+    refresh(); loadMedia(); loadSettings();
+  };
+  $("pin-input").onkeydown = (e) => { if (e.key === "Enter") $("pin-ok").click(); };
+
+  // ---- formatting ---------------------------------------------------------
+  function clock(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+  function dayWord(iso) {
+    const d = new Date(iso), now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay) return "today";
+    const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
+    if (d.toDateString() === tomorrow.toDateString()) return "tomorrow";
+    return d.toLocaleDateString([], { weekday: "long" });
+  }
+  function mmss(s) {
+    if (s == null || isNaN(s)) return "";
+    s = Math.max(0, Math.round(s));
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(sec).padStart(2, "0");
+  }
+  function labelFor(name) {
+    if (mediaInfo) { const p = mediaInfo.playlists.find((x) => x.name === name); if (p) return p.label; }
+    return name || "";
+  }
+  function mb(bytes) { return bytes >= 1e9 ? (bytes / 1e9).toFixed(1) + " GB" : Math.round(bytes / 1e6) + " MB"; }
+
+  // ---- status -------------------------------------------------------------
+  async function refresh() {
+    try { status = await api("/api/status"); }
+    catch (e) {
+      $("pill").textContent = "Can't reach the Pi"; $("pill").className = "pill bad";
+      showProblems([e.message]);
+      return;
+    }
+    render();
+  }
+
+  function showProblems(list) {
+    const box = $("problems"), holder = $("problem-list");
+    holder.innerHTML = "";
+    (list || []).forEach((p) => { const el = document.createElement("p"); el.textContent = p; holder.appendChild(el); });
+    box.hidden = !(list && list.length);
+  }
+
+  function render() {
+    const p = status.player, pill = $("pill");
+    showProblems(status.problems);
+
+    const playing = p.mode !== "off" && p.player_running;
+    if (!p.player_running) { pill.textContent = "Player not running"; pill.className = "pill bad"; }
+    else if (!playing) { pill.textContent = "Dark"; pill.className = "pill"; }
+    else if (p.paused) { pill.textContent = "Paused"; pill.className = "pill paused"; }
+    else { pill.textContent = "Playing"; pill.className = "pill on"; }
+
+    if (playing) {
+      $("now-title").textContent = p.mode === "once" ? (p.file || "Movie") : labelFor(p.playlist);
+      let sub = p.mode === "once" ? "Plays once, then the screen goes dark." : (p.file || "");
+      if (p.mode === "loop" && p.playlist_count > 1 && p.playlist_pos != null)
+        sub += "  ·  " + (p.playlist_pos + 1) + " of " + p.playlist_count + ", looping";
+      if (p.duration) sub += "  ·  " + mmss(p.position) + " / " + mmss(p.duration);
+      $("now-sub").textContent = sub;
+      $("now-progress").hidden = !p.duration;
+      $("now-bar").style.width = p.duration ? Math.min(100, 100 * (p.position || 0) / p.duration) + "%" : "0";
+    } else {
+      $("now-title").textContent = "Dark";
+      $("now-sub").textContent = p.player_running ? "Nothing is playing. Pick a show below." : "";
+      $("now-progress").hidden = true;
+    }
+    $("btn-pause").textContent = p.paused ? "Resume" : "Pause";
+    $("btn-pause").disabled = !playing;
+    $("btn-next").disabled = !playing || p.mode !== "loop" || p.playlist_count < 2;
+    $("btn-stop").disabled = !playing;
+
+    if (!volumeTouch && Date.now() - lastVolumeSent > 1500) {
+      $("volume").value = p.volume; $("volume-label").textContent = p.volume + "%";
+    }
+
+    // projector
+    const pr = status.projector;
+    if (!pr.enabled) {
+      $("proj-state").textContent = "Not controlled";
+      $("proj-sub").textContent = "Turn on projector control in Settings to switch it from here.";
+      $("proj-buttons").hidden = true;
+    } else {
+      const words = { on: "On", off: "Off (standby)", cooling: "Cooling down", warming: "Warming up", unknown: "Unknown" };
+      $("proj-state").textContent = pr.busy || words[pr.power] || "Unknown";
+      let sub = pr.reachable ? "" : "Not answering.";
+      if (pr.lamp_hours != null) sub = "Lamp has run " + pr.lamp_hours.toLocaleString() + " hours" +
+        (pr.lamp_hours >= 3500 ? " — time to think about a new lamp." : ".");
+      $("proj-sub").textContent = sub;
+      $("proj-buttons").hidden = false;
+      $("btn-proj-on").disabled = !!pr.busy || pr.power === "on";
+      $("btn-proj-off").disabled = !!pr.busy || pr.power === "off";
+    }
+
+    // schedule summary
+    const s = status.schedule;
+    let text;
+    if (!s.enabled) text = "No evening schedule. Shows only run when you start them.";
+    else if (s.active) text = "Tonight's show is on until " + clock(s.next_end) + ".";
+    else if (s.next_start) text = "Next show " + dayWord(s.next_start) + " at " + clock(s.next_start) +
+      ", ending at " + clock(s.next_end) + ".";
+    else text = "Schedule is on.";
+    $("sched-summary").textContent = text;
+
+    if (mediaInfo) markPlaying();
+  }
+
+  // ---- shows --------------------------------------------------------------
+  async function loadMedia() {
+    try { mediaInfo = await api("/api/media"); } catch (e) { return; }
+    $("media-dir").textContent = mediaInfo.media_dir;
+    const holder = $("playlists");
+    holder.innerHTML = "";
+    mediaInfo.playlists.forEach((pl) => {
+      if (pl.mode === "loop") {
+        const item = document.createElement("div");
+        item.className = "item playable"; item.dataset.playlist = pl.name;
+        const count = pl.files.length;
+        item.innerHTML = '<div class="name"><b></b><span class="sub"></span></div><span class="go">▶</span>';
+        item.querySelector("b").textContent = pl.label;
+        item.querySelector(".sub").textContent = count ? count + (count === 1 ? " file" : " files") + ", loops all evening"
+          : (pl.exists ? "Empty folder" : "No folder yet");
+        item.onclick = () => act("/api/play", { playlist: pl.name });
+        holder.appendChild(item);
+      } else {
+        const head = document.createElement("div");
+        head.className = "muted"; head.style.marginTop = "8px";
+        head.textContent = pl.label + " — plays once, then dark";
+        holder.appendChild(head);
+        if (!pl.files.length) {
+          const empty = document.createElement("div"); empty.className = "muted";
+          empty.textContent = pl.exists ? "No movies in the folder yet." : "No movies folder yet.";
+          holder.appendChild(empty);
+        }
+        pl.files.forEach((f) => {
+          const item = document.createElement("div");
+          item.className = "item playable"; item.dataset.playlist = pl.name; item.dataset.file = f.name;
+          item.innerHTML = '<div class="name"><b></b><span class="sub"></span></div><span class="go">▶</span>';
+          item.querySelector("b").textContent = f.name.replace(/\.[^.]+$/, "");
+          item.querySelector(".sub").textContent = mb(f.bytes);
+          item.onclick = () => act("/api/play", { playlist: pl.name, file: f.name });
+          holder.appendChild(item);
+        });
+      }
+    });
+    fillPlaylistSelects();
+    markPlaying();
+    renderFiles();
+  }
+
+  function markPlaying() {
+    const p = status && status.player;
+    document.querySelectorAll("#playlists .item").forEach((el) => {
+      const on = p && p.mode !== "off" && el.dataset.playlist === p.playlist &&
+        (p.mode === "loop" ? !el.dataset.file : el.dataset.file === p.file);
+      el.classList.toggle("playing", !!on);
+    });
+  }
+
+  function fillPlaylistSelects() {
+    ["sched-playlist", "files-playlist"].forEach((id) => {
+      const sel = $(id), keep = sel.value;
+      sel.innerHTML = "";
+      mediaInfo.playlists.forEach((pl) => {
+        if (id === "sched-playlist" && pl.mode !== "loop") return;
+        const o = document.createElement("option"); o.value = pl.name; o.textContent = pl.label; sel.appendChild(o);
+      });
+      if (keep) sel.value = keep;
+    });
+    if (settingsInfo) $("sched-playlist").value = settingsInfo.schedule.playlist;
+  }
+
+  // ---- files --------------------------------------------------------------
+  function renderFiles() {
+    const holder = $("files-list"); holder.innerHTML = "";
+    if (!mediaInfo) return;
+    const pl = mediaInfo.playlists.find((x) => x.name === $("files-playlist").value);
+    if (!pl) return;
+    if (!pl.files.length) { holder.innerHTML = '<div class="muted">Nothing in this folder yet.</div>'; return; }
+    pl.files.forEach((f) => {
+      const item = document.createElement("div"); item.className = "item";
+      item.innerHTML = '<div class="name"><b></b><span class="sub"></span></div><button class="small danger">Remove</button>';
+      item.querySelector("b").textContent = f.name;
+      item.querySelector(".sub").textContent = (f.kind === "image" ? "Picture, " : "") + mb(f.bytes);
+      item.querySelector("button").onclick = async () => {
+        if (!confirm("Remove " + f.name + " from the Pi? This can't be undone.")) return;
+        await act("/api/delete", { playlist: pl.name, file: f.name }, "Removed " + f.name);
+        loadMedia();
+      };
+      holder.appendChild(item);
+    });
+  }
+  $("files-playlist").onchange = renderFiles;
+
+  $("btn-upload").onclick = () => {
+    const file = $("file-input").files[0];
+    if (!file) { toast("Choose a file first.", true); return; }
+    const form = new FormData();
+    form.append("playlist", $("files-playlist").value);
+    form.append("file", file);
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload");
+    if (pin()) xhr.setRequestHeader("X-Pin", pin());
+    $("upload-progress").hidden = false; $("btn-upload").disabled = true;
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) $("upload-bar").style.width = (100 * e.loaded / e.total) + "%"; };
+    xhr.onload = () => {
+      $("upload-progress").hidden = true; $("upload-bar").style.width = "0"; $("btn-upload").disabled = false;
+      let data = {}; try { data = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status === 401) { askPin(); return; }
+      if (xhr.status >= 200 && xhr.status < 300 && data.ok) { toast("Uploaded " + data.name); $("file-input").value = ""; loadMedia(); }
+      else toast(data.error || "The upload didn't work.", true);
+    };
+    xhr.onerror = () => { $("upload-progress").hidden = true; $("btn-upload").disabled = false; toast("The upload didn't work. Try again.", true); };
+    xhr.send(form);
+  };
+
+  // ---- controls -----------------------------------------------------------
+  $("btn-pause").onclick = () => act(status.player.paused ? "/api/resume" : "/api/pause");
+  $("btn-next").onclick = () => act("/api/next");
+  $("btn-stop").onclick = () => act("/api/stop", {}, "Screen is dark.");
+  $("btn-proj-on").onclick = () => act("/api/projector", { power: "on" });
+  $("btn-proj-off").onclick = () => act("/api/projector", { power: "off" });
+  $("btn-restart").onclick = () => act("/api/restart_player", {}, "Player restarted.");
+  $("btn-log").onclick = async () => {
+    try {
+      const d = await api("/api/log");
+      $("log").textContent = ["-- app --"].concat(d.app.slice(-60), ["", "-- mpv --"], d.mpv).join("\n");
+      $("log").hidden = false;
+    } catch (e) { toast(e.message, true); }
+  };
+
+  const vol = $("volume");
+  vol.oninput = () => { volumeTouch = true; $("volume-label").textContent = vol.value + "%"; };
+  vol.onchange = async () => {
+    volumeTouch = false; lastVolumeSent = Date.now();
+    try { await api("/api/volume", { volume: Number(vol.value) }); } catch (e) { toast(e.message, true); }
+  };
+
+  // ---- schedule and settings ---------------------------------------------
+  async function loadSettings() {
+    try { settingsInfo = await api("/api/settings"); } catch (e) { return; }
+    const s = settingsInfo.schedule;
+    $("sched-enabled").checked = !!s.enabled;
+    $("sched-start").value = s.start; $("sched-end").value = s.end;
+    $("sched-proj").checked = !!s.projector_power;
+    if (mediaInfo) $("sched-playlist").value = s.playlist;
+    const pr = settingsInfo.projector;
+    $("set-proj-enabled").checked = !!pr.enabled;
+    $("set-proj-host").value = pr.host || "";
+    $("set-proj-input").value = pr.input || "";
+    $("set-proj-password").placeholder = settingsInfo.projector_password_set ? "unchanged (a password is set)" : "none";
+    $("set-image-seconds").value = settingsInfo.image_seconds;
+    const audio = $("set-audio"); audio.innerHTML = "";
+    const devices = [{ name: "auto", description: "Automatic" }].concat(settingsInfo.audio_devices || []);
+    if (!devices.some((d) => d.name === settingsInfo.audio_device))
+      devices.push({ name: settingsInfo.audio_device, description: settingsInfo.audio_device });
+    devices.forEach((d) => {
+      const o = document.createElement("option"); o.value = d.name;
+      o.textContent = d.description && d.description !== d.name ? d.description + " (" + d.name + ")" : d.name;
+      audio.appendChild(o);
+    });
+    audio.value = settingsInfo.audio_device;
+  }
+
+  $("btn-save-sched").onclick = async () => {
+    await act("/api/settings", { schedule: {
+      enabled: $("sched-enabled").checked, start: $("sched-start").value, end: $("sched-end").value,
+      playlist: $("sched-playlist").value, projector_power: $("sched-proj").checked } }, "Schedule saved.");
+    loadSettings();
+  };
+
+  $("btn-save-settings").onclick = async () => {
+    const body = {
+      projector: { enabled: $("set-proj-enabled").checked, host: $("set-proj-host").value, input: $("set-proj-input").value },
+      audio_device: $("set-audio").value,
+      image_seconds: Number($("set-image-seconds").value),
+    };
+    if ($("set-proj-password").value) body.projector.password = $("set-proj-password").value;
+    const newPin = $("set-pin").value.trim();
+    if ($("set-pin").value !== "") body.pin = newPin;
+    const data = await act("/api/settings", body, "Settings saved.");
+    if (data && "pin" in body) {
+      try { localStorage.setItem("balcony-pin", newPin); } catch (e) {}
+      $("set-pin").value = ""; $("set-pin").placeholder = newPin ? "unchanged" : "no PIN";
+    }
+    $("set-proj-password").value = "";
+    loadSettings();
+  };
+
+  // ---- go -----------------------------------------------------------------
+  refresh(); loadMedia(); loadSettings();
+  setInterval(() => { if (!document.hidden) refresh(); }, 3000);
+  setInterval(() => { if (!document.hidden) loadMedia(); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { refresh(); loadMedia(); } });
+})();
+</script>
+</body>
+</html>

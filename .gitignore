@@ -1,0 +1,6 @@
+state.json
+mpv.sock
+__pycache__/
+*.pyc
+*.part
+tests/.tmp/

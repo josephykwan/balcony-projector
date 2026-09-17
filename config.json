@@ -1,0 +1,30 @@
+{
+  "port": 8080,
+  "pin": "",
+  "media_dir": "~/media",
+  "playlists": {
+    "halloween": { "label": "Halloween", "mode": "loop" },
+    "campaign": { "label": "Campaign", "mode": "loop" },
+    "movies": { "label": "Movies", "mode": "once" }
+  },
+  "volume": 80,
+  "audio_device": "auto",
+  "image_seconds": 12,
+  "mpv_video_args": ["--vo=gpu", "--gpu-context=drm", "--hwdec=auto-safe"],
+  "mpv_extra_args": [],
+  "schedule": {
+    "enabled": false,
+    "start": "19:00",
+    "end": "23:00",
+    "playlist": "halloween",
+    "projector_power": true
+  },
+  "projector": {
+    "enabled": false,
+    "host": "192.168.50.2",
+    "port": 4352,
+    "password": "",
+    "input": "31",
+    "warmup_seconds": 60
+  }
+}
