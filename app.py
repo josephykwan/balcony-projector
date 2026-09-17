@@ -400,8 +400,10 @@ class Player:
         self.media = media
         self.lock = threading.RLock()
         self.mpv = None
+        # Unix socket paths have a short limit (about 100 characters), so keep
+        # this out of the app folder, which may live somewhere deep.
         self.socket_path = os.environ.get(
-            "BALCONY_MPV_SOCKET", os.path.join(BASE_DIR, "mpv.sock"))
+            "BALCONY_MPV_SOCKET", "/tmp/balcony-mpv-%d.sock" % os.getuid())
         self.shutting_down = False
         self.gave_up = False
         self.restarts = deque(maxlen=20)
@@ -447,6 +449,9 @@ class Player:
 
     def _launch(self):
         self.ignore_idle = True
+        if len(self.socket_path) > 100:
+            raise MPVError("the mpv socket path %s is too long; set BALCONY_MPV_SOCKET "
+                           "to something short" % self.socket_path)
         self.mpv = MPV(self.socket_path, self._mpv_args())
         self.mpv.start()
         self.started_at = time.time()
