@@ -44,9 +44,9 @@ if [[ -z "$RUN_HOME" || ! -d "$RUN_HOME" ]]; then
   exit 1
 fi
 
-echo "==> Installing mpv and Flask"
+echo "==> Installing mpv, Flask and ffmpeg"
 apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-flask mpv
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-flask mpv ffmpeg
 
 echo "==> Letting $RUN_USER use the display and sound"
 for grp in video render audio input; do

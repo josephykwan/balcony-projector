@@ -23,6 +23,8 @@ class FakeProjector:
         self.power = "0"           # 0 off, 1 on, 2 cooling, 3 warming
         self.input = "31"
         self.lamp_hours = 1234
+        self.muted = False
+        self.erst = "000000"       # fan, lamp, temperature, cover, filter, other
         self.commands = []         # everything received, for assertions
         self._until = 0
         self._sock = None
@@ -103,6 +105,17 @@ class FakeProjector:
                 return "%1INPT=ERR3"
             self.input = arg
             return "%1INPT=OK"
+        if cmd == "AVMT":
+            if arg == "?":
+                return "%%1AVMT=%s" % ("31" if self.muted else "30")
+            if self.power != "1":
+                return "%1AVMT=ERR3"
+            if arg in ("30", "31", "11", "21", "10", "20"):
+                self.muted = arg.endswith("1")
+                return "%1AVMT=OK"
+            return "%1AVMT=ERR2"
+        if cmd == "ERST":
+            return "%%1ERST=%s" % self.erst
         if cmd == "LAMP":
             return "%%1LAMP=%d %s" % (self.lamp_hours, "1" if self.power == "1" else "0")
         if cmd == "NAME":

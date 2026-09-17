@@ -18,8 +18,7 @@
     font: 17px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-text-size-adjust: 100%; }
   body { padding: env(safe-area-inset-top) 0 calc(24px + env(safe-area-inset-bottom)); }
-  header { display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 16px 8px; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 8px; }
   h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: .2px; }
   .pill { font-size: 14px; padding: 5px 11px; border-radius: 999px; background: var(--card-2);
     color: var(--muted); white-space: nowrap; }
@@ -28,64 +27,75 @@
   .pill.bad { background: #3a2222; color: #f2a0a0; }
   main { padding: 0 16px; display: grid; gap: 14px; max-width: 560px; margin: 0 auto; }
   .card { background: var(--card); border-radius: 16px; padding: 16px; }
-  .label { font-size: 13px; text-transform: uppercase; letter-spacing: .08em;
-    color: var(--muted); margin-bottom: 8px; }
+  .label { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
   .big { font-size: 24px; font-weight: 650; margin: 0; }
   .muted { color: var(--muted); font-size: 15px; }
   .row { display: flex; gap: 10px; margin-top: 12px; }
-  .row > * { flex: 1; }
+  .row > * { flex: 1; min-width: 0; }
   button { appearance: none; border: 0; border-radius: 12px; min-height: 52px; padding: 10px 14px;
-    font: inherit; font-weight: 600; color: var(--text); background: var(--card-2); cursor: pointer;
-    touch-action: manipulation; }
+    font: inherit; font-weight: 600; color: var(--text); background: var(--card-2); cursor: pointer; touch-action: manipulation; }
   button:active { filter: brightness(1.2); }
   button:disabled { opacity: .45; cursor: default; }
   button.primary { background: var(--accent); color: var(--accent-text); }
   button.danger { background: #3a2222; color: #f2a0a0; }
   button.small { min-height: 40px; padding: 6px 12px; font-size: 15px; font-weight: 500; }
+  button.tiny { min-height: 36px; padding: 4px 10px; font-size: 14px; font-weight: 500; flex: 0 0 auto; }
   .list { display: grid; gap: 8px; }
-  .item { display: flex; align-items: center; gap: 10px; background: var(--card-2);
-    border-radius: 12px; padding: 12px 14px; min-height: 56px; }
+  .item { display: flex; align-items: center; gap: 12px; background: var(--card-2); border-radius: 12px; padding: 10px 12px; min-height: 56px; }
   .item.playable { cursor: pointer; }
   .item.playing { outline: 2px solid var(--accent); }
-  .item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .item .sub { color: var(--muted); font-size: 14px; }
-  .item .name b { display: block; font-weight: 600; }
+  .item.off { opacity: .55; }
+  .item .name { flex: 1; min-width: 0; }
+  .item .name b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .sub { color: var(--muted); font-size: 14px; display: block; }
   .item .go { color: var(--accent); font-weight: 700; font-size: 20px; }
+  .thumb { width: 72px; height: 45px; border-radius: 6px; background: #000 center/cover no-repeat; flex: 0 0 auto;
+    border: 1px solid var(--line); }
+  .thumb.mirror { transform: scaleX(-1); }
+  .badge { display: inline-block; font-size: 12px; padding: 2px 7px; border-radius: 999px; background: #223522; color: #9be39b; margin-left: 6px; vertical-align: middle; }
+  .badge.warn { background: #3b2d14; color: #f5d08a; }
+  .badge.bad { background: #3a2222; color: #f2a0a0; }
   .progress { height: 6px; background: var(--card-2); border-radius: 3px; margin-top: 12px; overflow: hidden; }
   .progress > div { height: 100%; width: 0; background: var(--accent); transition: width .5s linear; }
   #problems { background: #3b2d14; border: 1px solid #6b5220; }
   #problems .label { color: #f5d08a; }
   #problems p { margin: 6px 0 0; font-size: 15px; }
   input[type=range] { width: 100%; margin: 8px 0 0; accent-color: var(--accent); }
-  input[type=text], input[type=time], input[type=password], input[type=number], select {
+  input[type=text], input[type=time], input[type=password], input[type=number], input[type=date], input[type=color], input[type=url], select, textarea {
     width: 100%; font: inherit; color: var(--text); background: var(--card-2); border: 1px solid var(--line);
     border-radius: 10px; padding: 11px 12px; min-height: 48px; }
-  input[type=time] { -webkit-appearance: none; }
+  input[type=color] { padding: 4px; }
+  input[type=time], input[type=date] { -webkit-appearance: none; }
+  textarea { resize: vertical; min-height: 72px; }
   label.field { display: block; margin-top: 12px; font-size: 15px; color: var(--muted); }
   label.field > * { margin-top: 5px; }
-  label.check { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 16px; }
-  label.check input { width: 22px; height: 22px; accent-color: var(--accent); margin: 0; }
-  details.card > summary { cursor: pointer; font-weight: 600; list-style: none; display: flex;
-    justify-content: space-between; }
+  label.check { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 16px; color: var(--text); }
+  label.check input { width: 22px; height: 22px; accent-color: var(--accent); margin: 0; flex: 0 0 auto; }
+  details.card > summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; }
   details.card > summary::after { content: "+"; color: var(--muted); }
   details[open].card > summary::after { content: "–"; }
   details.card > summary::-webkit-details-marker { display: none; }
   .section { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 14px; }
   .section h3 { margin: 0 0 6px; font-size: 16px; }
-  pre { background: #0b0d11; color: #b9bfcc; font-size: 12px; padding: 12px; border-radius: 10px;
-    overflow: auto; max-height: 260px; white-space: pre-wrap; word-break: break-word; }
-  #toast { position: fixed; left: 16px; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
-    background: #262b36; color: var(--text); padding: 14px 16px; border-radius: 12px; font-size: 15px;
-    box-shadow: 0 8px 30px rgba(0,0,0,.5); opacity: 0; transform: translateY(10px);
-    transition: opacity .2s, transform .2s; pointer-events: none; max-width: 528px; margin: 0 auto; }
+  pre { background: #0b0d11; color: #b9bfcc; font-size: 12px; padding: 12px; border-radius: 10px; overflow: auto; max-height: 260px; white-space: pre-wrap; word-break: break-word; }
+  #toast { position: fixed; left: 16px; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom)); background: #262b36; color: var(--text);
+    padding: 14px 16px; border-radius: 12px; font-size: 15px; box-shadow: 0 8px 30px rgba(0,0,0,.5); opacity: 0; transform: translateY(10px);
+    transition: opacity .2s, transform .2s; pointer-events: none; max-width: 528px; margin: 0 auto; z-index: 5; }
   #toast.show { opacity: 1; transform: none; }
   #toast.bad { background: #4a2424; }
-  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none;
-    align-items: center; justify-content: center; padding: 24px; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 6; }
   .modal.show { display: flex; }
   .modal .card { width: 100%; max-width: 360px; }
   .hint { color: var(--muted); font-size: 14px; margin: 8px 0 0; }
   .up { display: block; margin-top: 8px; }
+  .season { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: var(--card-2); border-radius: 12px; padding: 10px; margin-top: 10px; }
+  .season .full { grid-column: 1 / -1; }
+  .season label { font-size: 13px; color: var(--muted); display: block; }
+  .season input, .season select { min-height: 42px; padding: 8px 10px; background: var(--card); }
+  canvas.preview { width: 100%; border-radius: 10px; border: 1px solid var(--line); background: #000; display: block; margin-top: 10px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .controls select, .controls input { width: auto; min-height: 36px; padding: 4px 8px; font-size: 14px; }
+  .health { font-size: 14px; color: var(--muted); margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -113,11 +123,13 @@
     <label class="field">Volume <span id="volume-label"></span>
       <input type="range" id="volume" min="0" max="100" step="5">
     </label>
+    <div class="muted" id="dim-note" hidden></div>
   </section>
 
   <section class="card">
     <div class="label">Shows</div>
     <div class="list" id="playlists"><div class="muted">Loading…</div></div>
+    <div class="muted" id="processing-note" style="margin-top:10px" hidden></div>
   </section>
 
   <section class="card" id="projector-card">
@@ -128,6 +140,14 @@
       <button id="btn-proj-on" class="primary">Turn on</button>
       <button id="btn-proj-off">Turn off</button>
     </div>
+    <div class="row" id="proj-buttons-2" hidden>
+      <button id="btn-proj-mute">Blank picture</button>
+      <select id="proj-input" aria-label="Projector input">
+        <option value="31">HDMI 1</option>
+        <option value="32">HDMI 2</option>
+        <option value="11">Computer</option>
+      </select>
+    </div>
   </section>
 
   <section class="card">
@@ -135,25 +155,59 @@
     <div class="muted" id="sched-summary"></div>
     <label class="check"><input type="checkbox" id="sched-enabled"> Run a show every evening</label>
     <div class="row">
-      <label class="field">Starts at <input type="time" id="sched-start"></label>
-      <label class="field">Ends at <input type="time" id="sched-end"></label>
+      <label class="field">Starts
+        <select id="sched-start-kind"><option value="sunset">At sunset</option><option value="time">At a set time</option></select>
+      </label>
+      <label class="field" id="sched-start-time-wrap">Time <input type="time" id="sched-start"></label>
+      <label class="field" id="sched-start-offset-wrap">Minutes after sunset <input type="number" id="sched-start-offset" step="5" min="-180" max="180"></label>
     </div>
-    <label class="field">Show <select id="sched-playlist"></select></label>
+    <div class="row">
+      <label class="field">Ends
+        <select id="sched-end-kind"><option value="time">At a set time</option><option value="sunrise">At sunrise</option></select>
+      </label>
+      <label class="field" id="sched-end-time-wrap">Time <input type="time" id="sched-end"></label>
+      <label class="field" id="sched-end-offset-wrap">Minutes before sunrise <input type="number" id="sched-end-offset" step="5" min="-180" max="180"></label>
+    </div>
+    <label class="field">Show when no season applies <select id="sched-playlist"></select></label>
     <label class="check"><input type="checkbox" id="sched-proj"> Also turn the projector on and off</label>
+    <div class="section">
+      <h3>Seasons</h3>
+      <p class="hint">Date ranges that pick the show. Dates like 10-01 repeat every year; 2026-11-03 is one year only. The first match wins.</p>
+      <div id="seasons"></div>
+      <div class="row"><button id="btn-add-season" class="small">Add a season</button></div>
+    </div>
     <div class="row"><button id="btn-save-sched" class="primary">Save schedule</button></div>
   </section>
 
   <details class="card" id="files-card">
-    <summary>Add or remove videos</summary>
-    <p class="hint">Files also work if you copy them straight into the media folder on the Pi:
-      <span id="media-dir"></span></p>
+    <summary>Manage videos</summary>
+    <p class="hint">Files also work if you copy them straight into the media folder on the Pi: <span id="media-dir"></span></p>
     <label class="field">Playlist <select id="files-playlist"></select></label>
     <label class="field">Upload a video or picture
       <input type="file" id="file-input" class="up" accept="video/*,image/*">
     </label>
     <div class="row"><button id="btn-upload" class="primary">Upload</button></div>
     <div class="progress" id="upload-progress" hidden><div id="upload-bar"></div></div>
+    <label class="check"><input type="checkbox" id="mirror"> Show pictures as seen from the balcony (mirrored)</label>
     <div class="list" id="files-list" style="margin-top:14px"></div>
+    <p class="hint">Hologram mode: <b>invert</b> turns dark-on-white artwork into glowing text on black. <b>Knockout</b> makes white areas black and keeps other colours. Black disappears on the mesh, so figures look like they float.</p>
+  </details>
+
+  <details class="card" id="slide-card">
+    <summary>Make a slide</summary>
+    <p class="hint">A few big glowing words on black. Keep it to what a driver can read in three seconds.</p>
+    <label class="field">Words (one line per row, up to three)
+      <textarea id="slide-title" maxlength="120" placeholder="VOTE NOV 3"></textarea>
+    </label>
+    <label class="field">Smaller line underneath (optional) <input type="text" id="slide-sub" maxlength="60" placeholder="Early voting starts Oct 19"></label>
+    <div class="row">
+      <label class="field">Colour <input type="color" id="slide-color" value="#ffffff"></label>
+      <label class="field">Seconds on screen <input type="number" id="slide-dwell" min="4" max="120" value="12"></label>
+      <label class="field">Playlist <select id="slide-playlist"></select></label>
+    </div>
+    <canvas class="preview" id="slide-preview" width="1280" height="800"></canvas>
+    <div class="muted" id="slide-note" style="margin-top:8px"></div>
+    <div class="row"><button id="btn-slide" class="primary">Add this slide</button></div>
   </details>
 
   <details class="card">
@@ -172,12 +226,52 @@
           <option value="32">HDMI 2</option>
           <option value="">Leave as is</option>
         </select></label>
+      <label class="check"><input type="checkbox" id="set-proj-mute"> Blank the projector while the screen is dark (less light spill)</label>
+      <label class="field">Remind me about the lamp after this many hours <input type="number" id="set-lamp-hours" min="100" step="100"></label>
+    </div>
+
+    <div class="section">
+      <h3>Campaign slides: the "paid for by" line</h3>
+      <p class="hint">Texas law says political advertising must say it is political advertising and who paid for it. This strip is burned into everything in the campaign playlist and can't be switched off per file. Check the exact wording with the campaign's lawyer.</p>
+      <div id="disclaimers"></div>
     </div>
 
     <div class="section">
       <h3>Sound and pictures</h3>
       <label class="field">Play sound through <select id="set-audio"></select></label>
-      <label class="field">Show each picture for (seconds) <input type="number" id="set-image-seconds" min="2" max="600"></label>
+      <label class="field">Show each new picture for (seconds) <input type="number" id="set-image-seconds" min="2" max="600"></label>
+      <label class="check"><input type="checkbox" id="set-proc-enabled"> Convert uploads so they loop smoothly (needs ffmpeg)</label>
+      <label class="check"><input type="checkbox" id="set-proc-shows"> Stitch each playlist into one seamless show with crossfades</label>
+      <label class="field">Crossfade length (seconds) <input type="number" id="set-crossfade" min="0.3" max="5" step="0.1"></label>
+      <div class="muted" id="proc-info"></div>
+    </div>
+
+    <div class="section">
+      <h3>Quiet hours</h3>
+      <p class="hint">Dim the picture late in the evening so it bothers neighbours and drivers less.</p>
+      <label class="check"><input type="checkbox" id="set-dim-enabled"> Dim the picture during these hours</label>
+      <div class="row">
+        <label class="field">From <input type="time" id="set-dim-start"></label>
+        <label class="field">Until <input type="time" id="set-dim-end"></label>
+        <label class="field">Brightness % <input type="number" id="set-dim-level" min="10" max="100" step="5"></label>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Where the balcony is</h3>
+      <p class="hint">For sunset times. Dallas is about 32.78, -96.80.</p>
+      <div class="row">
+        <label class="field">Latitude <input type="number" id="set-lat" step="0.01"></label>
+        <label class="field">Longitude <input type="number" id="set-lon" step="0.01"></label>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Alerts on your phone</h3>
+      <p class="hint">Install the free ntfy app, pick a topic name, and put https://ntfy.sh/your-topic here. You'll get a message if the show stops, the projector faults, or the Pi runs hot.</p>
+      <label class="check"><input type="checkbox" id="set-alerts-enabled"> Send alerts</label>
+      <label class="field">ntfy address <input type="url" id="set-ntfy" placeholder="https://ntfy.sh/balcony-abc123"></label>
+      <div class="row"><button id="btn-test-alert" class="small">Send a test</button></div>
     </div>
 
     <div class="section">
@@ -190,7 +284,8 @@
     <div class="row"><button id="btn-save-settings" class="primary">Save settings</button></div>
 
     <div class="section">
-      <h3>If something is stuck</h3>
+      <h3>The Pi</h3>
+      <div class="health" id="health"></div>
       <div class="row">
         <button id="btn-restart">Restart the player</button>
         <button id="btn-log">Show the log</button>
@@ -220,6 +315,9 @@
 
   // ---- talking to the Pi --------------------------------------------------
   function pin() { try { return localStorage.getItem("balcony-pin") || ""; } catch (e) { return ""; } }
+  function pref(key, value) {
+    try { if (value === undefined) return localStorage.getItem("balcony-" + key); localStorage.setItem("balcony-" + key, value); } catch (e) { return null; }
+  }
 
   async function api(path, body, opts) {
     const init = Object.assign({ method: body === undefined ? "GET" : "POST", headers: {} }, opts || {});
@@ -266,15 +364,10 @@
   $("pin-input").onkeydown = (e) => { if (e.key === "Enter") $("pin-ok").click(); };
 
   // ---- formatting ---------------------------------------------------------
-  function clock(iso) {
-    if (!iso) return "";
-    const d = new Date(iso);
-    return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  }
+  function clock(iso) { if (!iso) return ""; return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
   function dayWord(iso) {
     const d = new Date(iso), now = new Date();
-    const sameDay = d.toDateString() === now.toDateString();
-    if (sameDay) return "today";
+    if (d.toDateString() === now.toDateString()) return "today";
     const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
     if (d.toDateString() === tomorrow.toDateString()) return "tomorrow";
     return d.toLocaleDateString([], { weekday: "long" });
@@ -289,7 +382,16 @@
     if (mediaInfo) { const p = mediaInfo.playlists.find((x) => x.name === name); if (p) return p.label; }
     return name || "";
   }
-  function mb(bytes) { return bytes >= 1e9 ? (bytes / 1e9).toFixed(1) + " GB" : Math.round(bytes / 1e6) + " MB"; }
+  function fileLabel(playlistName, fileName) {
+    if (mediaInfo) {
+      const p = mediaInfo.playlists.find((x) => x.name === playlistName);
+      const f = p && p.files.find((x) => x.name === fileName);
+      if (f) return f.label;
+    }
+    return (fileName || "").replace(/\.[^.]+$/, "");
+  }
+  function mb(bytes) { return bytes >= 1e9 ? (bytes / 1e9).toFixed(1) + " GB" : bytes >= 1e6 ? Math.round(bytes / 1e6) + " MB" : Math.max(1, Math.round(bytes / 1e3)) + " KB"; }
+  function thumbUrl(pl, name) { return "/api/thumb/" + encodeURIComponent(pl) + "/" + encodeURIComponent(name) + (pin() ? "?pin=" + encodeURIComponent(pin()) : ""); }
 
   // ---- status -------------------------------------------------------------
   async function refresh() {
@@ -320,11 +422,11 @@
     else { pill.textContent = "Playing"; pill.className = "pill on"; }
 
     if (playing) {
-      $("now-title").textContent = p.mode === "once" ? (p.file || "Movie") : labelFor(p.playlist);
-      let sub = p.mode === "once" ? "Plays once, then the screen goes dark." : (p.file || "");
+      $("now-title").textContent = p.mode === "once" ? fileLabel(p.playlist, p.file) : labelFor(p.playlist);
+      let sub = p.mode === "once" ? "Plays once, then the screen goes dark." : fileLabel(p.playlist, p.file);
       if (p.mode === "loop" && p.playlist_count > 1 && p.playlist_pos != null)
-        sub += "  ·  " + (p.playlist_pos + 1) + " of " + p.playlist_count + ", looping";
-      if (p.duration) sub += "  ·  " + mmss(p.position) + " / " + mmss(p.duration);
+        sub += "  ·  " + (p.playlist_pos + 1) + " of " + p.playlist_count + (p.show ? ", seamless loop" : ", looping");
+      if (p.duration && !p.show) sub += "  ·  " + mmss(p.position) + " / " + mmss(p.duration);
       $("now-sub").textContent = sub;
       $("now-progress").hidden = !p.duration;
       $("now-bar").style.width = p.duration ? Math.min(100, 100 * (p.position || 0) / p.duration) + "%" : "0";
@@ -337,6 +439,8 @@
     $("btn-pause").disabled = !playing;
     $("btn-next").disabled = !playing || p.mode !== "loop" || p.playlist_count < 2;
     $("btn-stop").disabled = !playing;
+    $("dim-note").hidden = !(p.dim_level && p.dim_level < 100);
+    $("dim-note").textContent = "Quiet hours: picture dimmed to " + p.dim_level + "%.";
 
     if (!volumeTouch && Date.now() - lastVolumeSent > 1500) {
       $("volume").value = p.volume; $("volume-label").textContent = p.volume + "%";
@@ -347,33 +451,65 @@
     if (!pr.enabled) {
       $("proj-state").textContent = "Not controlled";
       $("proj-sub").textContent = "Turn on projector control in Settings to switch it from here.";
-      $("proj-buttons").hidden = true;
+      $("proj-buttons").hidden = true; $("proj-buttons-2").hidden = true;
     } else {
       const words = { on: "On", off: "Off (standby)", cooling: "Cooling down", warming: "Warming up", unknown: "Unknown" };
-      $("proj-state").textContent = pr.busy || words[pr.power] || "Unknown";
+      $("proj-state").textContent = pr.busy || (words[pr.power] || "Unknown") + (pr.muted ? ", picture blanked" : "");
       let sub = pr.reachable ? "" : "Not answering.";
       if (pr.lamp_hours != null) sub = "Lamp has run " + pr.lamp_hours.toLocaleString() + " hours" +
-        (pr.lamp_hours >= 3500 ? " — time to think about a new lamp." : ".");
+        (pr.lamp_hours >= pr.lamp_warn_hours ? " — time to order a spare." : ".");
       $("proj-sub").textContent = sub;
-      $("proj-buttons").hidden = false;
+      $("proj-buttons").hidden = false; $("proj-buttons-2").hidden = false;
       $("btn-proj-on").disabled = !!pr.busy || pr.power === "on";
       $("btn-proj-off").disabled = !!pr.busy || pr.power === "off";
+      $("btn-proj-mute").disabled = pr.power !== "on";
+      $("btn-proj-mute").textContent = pr.muted ? "Show picture" : "Blank picture";
+      $("proj-input").disabled = pr.power !== "on";
     }
 
     // schedule summary
     const s = status.schedule;
     let text;
     if (!s.enabled) text = "No evening schedule. Shows only run when you start them.";
-    else if (s.active) text = "Tonight's show is on until " + clock(s.next_end) + ".";
-    else if (s.next_start) text = "Next show " + dayWord(s.next_start) + " at " + clock(s.next_start) +
-      ", ending at " + clock(s.next_end) + ".";
+    else if (s.active) text = "Tonight's show (" + labelFor(s.tonight_playlist) + ") is on until " + clock(s.next_end) + ".";
+    else if (s.next_start) text = "Next: " + labelFor(s.tonight_playlist) + (s.tonight_season ? " (" + s.tonight_season + ")" : "") +
+      " " + dayWord(s.next_start) + " at " + clock(s.next_start) + ", ending " + clock(s.next_end) + ".";
     else text = "Schedule is on.";
+    if (s.sunset_today) text += " Sunset today is " + clock(s.sunset_today) + ".";
     $("sched-summary").textContent = text;
+
+    // processing
+    const pc = status.processing;
+    const note = $("processing-note");
+    if (pc && pc.current) {
+      const c = pc.current;
+      const what = c.kind === "show" ? "Stitching the " + labelFor(c.playlist) + " show" : "Converting " + (c.file || "") ;
+      note.textContent = what + (c.progress ? " · " + Math.round(c.progress * 100) + "%" : "") + (pc.queued ? " · " + pc.queued + " more waiting" : "");
+      note.hidden = false;
+    } else if (pc && pc.queued) { note.textContent = pc.queued + " file(s) waiting to be converted."; note.hidden = false; }
+    else note.hidden = true;
+
+    // health
+    const h = status.health || {};
+    const bits = [];
+    if (h.cpu_temp != null) bits.push("CPU " + h.cpu_temp + " C");
+    if (h.disk_free_gb != null) bits.push(h.disk_free_gb + " GB free");
+    if (h.uptime_hours != null) bits.push("up " + (h.uptime_hours >= 48 ? Math.round(h.uptime_hours / 24) + " days" : h.uptime_hours + " h"));
+    if (h.load != null) bits.push("load " + h.load);
+    if (pc && pc.encoder) bits.push("encoder " + pc.encoder);
+    $("health").textContent = bits.join(" · ");
 
     if (mediaInfo) markPlaying();
   }
 
   // ---- shows --------------------------------------------------------------
+  function thumbEl(pl, f) {
+    const t = document.createElement("div");
+    t.className = "thumb" + (pref("mirror") === "1" ? " mirror" : "");
+    if (f && f.thumb) t.style.backgroundImage = "url('" + thumbUrl(pl, f.name) + "')";
+    return t;
+  }
+
   async function loadMedia() {
     try { mediaInfo = await api("/api/media"); } catch (e) { return; }
     $("media-dir").textContent = mediaInfo.media_dir;
@@ -383,11 +519,17 @@
       if (pl.mode === "loop") {
         const item = document.createElement("div");
         item.className = "item playable"; item.dataset.playlist = pl.name;
-        const count = pl.files.length;
-        item.innerHTML = '<div class="name"><b></b><span class="sub"></span></div><span class="go">▶</span>';
-        item.querySelector("b").textContent = pl.label;
-        item.querySelector(".sub").textContent = count ? count + (count === 1 ? " file" : " files") + ", loops all evening"
-          : (pl.exists ? "Empty folder" : "No folder yet");
+        const on = pl.files.filter((f) => f.enabled && f.status !== "waiting");
+        item.appendChild(thumbEl(pl.name, on.find((f) => f.thumb)));
+        const name = document.createElement("div"); name.className = "name";
+        const b = document.createElement("b"); b.textContent = pl.label;
+        if (pl.show && pl.show.ready) { const badge = document.createElement("span"); badge.className = "badge"; badge.textContent = "seamless"; b.appendChild(badge); }
+        const sub = document.createElement("span"); sub.className = "sub";
+        sub.textContent = on.length ? on.length + (on.length === 1 ? " file" : " files") + ", loops all evening"
+          : (pl.files.length ? "Nothing switched on" : pl.exists ? "Empty folder" : "No folder yet");
+        name.appendChild(b); name.appendChild(sub);
+        item.appendChild(name);
+        const go = document.createElement("span"); go.className = "go"; go.textContent = "▶"; item.appendChild(go);
         item.onclick = () => act("/api/play", { playlist: pl.name });
         holder.appendChild(item);
       } else {
@@ -403,9 +545,13 @@
         pl.files.forEach((f) => {
           const item = document.createElement("div");
           item.className = "item playable"; item.dataset.playlist = pl.name; item.dataset.file = f.name;
-          item.innerHTML = '<div class="name"><b></b><span class="sub"></span></div><span class="go">▶</span>';
-          item.querySelector("b").textContent = f.name.replace(/\.[^.]+$/, "");
-          item.querySelector(".sub").textContent = mb(f.bytes);
+          item.appendChild(thumbEl(pl.name, f));
+          const name = document.createElement("div"); name.className = "name";
+          const b = document.createElement("b"); b.textContent = f.label;
+          const sub = document.createElement("span"); sub.className = "sub";
+          sub.textContent = (f.duration ? mmss(f.duration) + " · " : "") + mb(f.bytes) + (f.status === "processing" ? " · converting" : "");
+          name.appendChild(b); name.appendChild(sub); item.appendChild(name);
+          const go = document.createElement("span"); go.className = "go"; go.textContent = "▶"; item.appendChild(go);
           item.onclick = () => act("/api/play", { playlist: pl.name, file: f.name });
           holder.appendChild(item);
         });
@@ -414,6 +560,7 @@
     fillPlaylistSelects();
     markPlaying();
     renderFiles();
+    renderSlidePreview();
   }
 
   function markPlaying() {
@@ -426,7 +573,7 @@
   }
 
   function fillPlaylistSelects() {
-    ["sched-playlist", "files-playlist"].forEach((id) => {
+    ["sched-playlist", "files-playlist", "slide-playlist"].forEach((id) => {
       const sel = $(id), keep = sel.value;
       sel.innerHTML = "";
       mediaInfo.playlists.forEach((pl) => {
@@ -435,30 +582,102 @@
       });
       if (keep) sel.value = keep;
     });
+    document.querySelectorAll(".season select").forEach((sel) => {
+      const keep = sel.value; sel.innerHTML = "";
+      mediaInfo.playlists.forEach((pl) => { if (pl.mode !== "loop") return; const o = document.createElement("option"); o.value = pl.name; o.textContent = pl.label; sel.appendChild(o); });
+      if (keep) sel.value = keep;
+    });
     if (settingsInfo) $("sched-playlist").value = settingsInfo.schedule.playlist;
   }
 
-  // ---- files --------------------------------------------------------------
+  // ---- manage videos ------------------------------------------------------
+  const STATUS_WORDS = { queued: "waiting to convert", processing: "converting", failed: "couldn't convert", waiting: "needs the paid-for line", unprocessed: "as uploaded" };
+
   function renderFiles() {
     const holder = $("files-list"); holder.innerHTML = "";
     if (!mediaInfo) return;
     const pl = mediaInfo.playlists.find((x) => x.name === $("files-playlist").value);
     if (!pl) return;
     if (!pl.files.length) { holder.innerHTML = '<div class="muted">Nothing in this folder yet.</div>'; return; }
-    pl.files.forEach((f) => {
-      const item = document.createElement("div"); item.className = "item";
-      item.innerHTML = '<div class="name"><b></b><span class="sub"></span></div><button class="small danger">Remove</button>';
-      item.querySelector("b").textContent = f.name;
-      item.querySelector(".sub").textContent = (f.kind === "image" ? "Picture, " : "") + mb(f.bytes);
-      item.querySelector("button").onclick = async () => {
-        if (!confirm("Remove " + f.name + " from the Pi? This can't be undone.")) return;
-        await act("/api/delete", { playlist: pl.name, file: f.name }, "Removed " + f.name);
+    pl.files.forEach((f, idx) => {
+      const item = document.createElement("div"); item.className = "item" + (f.enabled ? "" : " off");
+      item.style.flexWrap = "wrap";
+      const top = document.createElement("div"); top.style.cssText = "display:flex;align-items:center;gap:12px;width:100%";
+      top.appendChild(thumbEl(pl.name, f));
+      const name = document.createElement("div"); name.className = "name";
+      const b = document.createElement("b"); b.textContent = f.label;
+      if (f.status !== "ready") { const badge = document.createElement("span"); badge.className = "badge " + (f.status === "failed" || f.status === "waiting" ? "bad" : "warn"); badge.textContent = STATUS_WORDS[f.status] || f.status; b.appendChild(badge); }
+      if (f.flash_warning) { const badge = document.createElement("span"); badge.className = "badge warn"; badge.textContent = "flashes"; b.appendChild(badge); }
+      const sub = document.createElement("span"); sub.className = "sub";
+      sub.textContent = [f.duration ? mmss(f.duration) : (f.kind === "image" ? "picture" : ""), mb(f.bytes),
+        f.hologram !== "off" ? "hologram: " + f.hologram + (f.hologram_auto ? " (auto)" : "") : ""].filter(Boolean).join(" · ");
+      name.appendChild(b); name.appendChild(sub); top.appendChild(name);
+      const up = document.createElement("button"); up.className = "tiny"; up.textContent = "▲"; up.disabled = idx === 0; up.title = "Move up";
+      const down = document.createElement("button"); down.className = "tiny"; down.textContent = "▼"; down.disabled = idx === pl.files.length - 1; down.title = "Move down";
+      up.onclick = () => move(pl, idx, -1); down.onclick = () => move(pl, idx, 1);
+      top.appendChild(up); top.appendChild(down);
+      item.appendChild(top);
+      if (f.error) { const err = document.createElement("div"); err.className = "muted"; err.style.width = "100%"; err.textContent = f.error; item.appendChild(err); }
+      const controls = document.createElement("div"); controls.className = "controls"; controls.style.width = "100%";
+      const onoff = document.createElement("button"); onoff.className = "tiny"; onoff.textContent = f.enabled ? "Switch off" : "Switch on";
+      onoff.onclick = async () => { await act("/api/item", { playlist: pl.name, file: f.name, enabled: !f.enabled }); loadMedia(); };
+      controls.appendChild(onoff);
+      if (f.from_image || f.kind === "image") {
+        const dwell = document.createElement("input"); dwell.type = "number"; dwell.min = 2; dwell.max = 600; dwell.value = f.dwell; dwell.title = "Seconds on screen"; dwell.style.width = "70px";
+        dwell.onchange = async () => { await act("/api/item", { playlist: pl.name, file: f.name, dwell: Number(dwell.value) }, "Will re-make it at " + dwell.value + " seconds."); loadMedia(); };
+        controls.appendChild(dwell);
+        const lbl = document.createElement("span"); lbl.className = "muted"; lbl.style.alignSelf = "center"; lbl.textContent = "s"; controls.appendChild(lbl);
+      }
+      const holo = document.createElement("select"); holo.title = "Hologram mode";
+      [["off", "Hologram: off"], ["invert", "Hologram: invert"], ["knockout", "Hologram: knockout"]].forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; holo.appendChild(o); });
+      holo.value = f.hologram;
+      holo.onchange = async () => { await act("/api/item", { playlist: pl.name, file: f.name, hologram: holo.value }, "Re-making it."); loadMedia(); };
+      controls.appendChild(holo);
+      if (f.status === "failed" || f.status === "ready" || f.status === "unprocessed") {
+        const redo = document.createElement("button"); redo.className = "tiny"; redo.textContent = "Redo";
+        redo.onclick = async () => { await act("/api/item", { playlist: pl.name, file: f.name, reprocess: true }, "Converting again."); loadMedia(); };
+        controls.appendChild(redo);
+      }
+      const rm = document.createElement("button"); rm.className = "tiny danger"; rm.textContent = "Remove";
+      rm.onclick = async () => {
+        if (!confirm("Remove " + f.label + " from the Pi? This can't be undone.")) return;
+        await act("/api/delete", { playlist: pl.name, file: f.name }, "Removed " + f.label);
         loadMedia();
       };
+      controls.appendChild(rm);
+      item.appendChild(controls);
       holder.appendChild(item);
     });
   }
+
+  async function move(pl, idx, delta) {
+    const names = pl.files.map((f) => f.name);
+    const j = idx + delta;
+    if (j < 0 || j >= names.length) return;
+    [names[idx], names[j]] = [names[j], names[idx]];
+    await act("/api/order", { playlist: pl.name, files: names });
+    loadMedia();
+  }
   $("files-playlist").onchange = renderFiles;
+  $("mirror").checked = pref("mirror") === "1";
+  $("mirror").onchange = () => { pref("mirror", $("mirror").checked ? "1" : "0"); loadMedia(); };
+
+  function uploadForm(form, onDone) {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload");
+    if (pin()) xhr.setRequestHeader("X-Pin", pin());
+    $("upload-progress").hidden = false;
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) $("upload-bar").style.width = (100 * e.loaded / e.total) + "%"; };
+    xhr.onload = () => {
+      $("upload-progress").hidden = true; $("upload-bar").style.width = "0";
+      let data = {}; try { data = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status === 401) { askPin(); onDone(false); return; }
+      if (xhr.status >= 200 && xhr.status < 300 && data.ok) { onDone(true, data); }
+      else { toast(data.error || "The upload didn't work.", true); onDone(false); }
+    };
+    xhr.onerror = () => { $("upload-progress").hidden = true; toast("The upload didn't work. Try again.", true); onDone(false); };
+    xhr.send(form);
+  }
 
   $("btn-upload").onclick = () => {
     const file = $("file-input").files[0];
@@ -466,20 +685,99 @@
     const form = new FormData();
     form.append("playlist", $("files-playlist").value);
     form.append("file", file);
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/upload");
-    if (pin()) xhr.setRequestHeader("X-Pin", pin());
-    $("upload-progress").hidden = false; $("btn-upload").disabled = true;
-    xhr.upload.onprogress = (e) => { if (e.lengthComputable) $("upload-bar").style.width = (100 * e.loaded / e.total) + "%"; };
-    xhr.onload = () => {
-      $("upload-progress").hidden = true; $("upload-bar").style.width = "0"; $("btn-upload").disabled = false;
-      let data = {}; try { data = JSON.parse(xhr.responseText); } catch (e) {}
-      if (xhr.status === 401) { askPin(); return; }
-      if (xhr.status >= 200 && xhr.status < 300 && data.ok) { toast("Uploaded " + data.name); $("file-input").value = ""; loadMedia(); }
-      else toast(data.error || "The upload didn't work.", true);
-    };
-    xhr.onerror = () => { $("upload-progress").hidden = true; $("btn-upload").disabled = false; toast("The upload didn't work. Try again.", true); };
-    xhr.send(form);
+    $("btn-upload").disabled = true;
+    uploadForm(form, (ok, data) => {
+      $("btn-upload").disabled = false;
+      if (ok) { toast("Uploaded " + data.name + (data.processing ? ". Converting it now." : ".")); $("file-input").value = ""; loadMedia(); }
+    });
+  };
+
+  // ---- slide builder ------------------------------------------------------
+  function fitFont(ctx, lines, maxWidth, start, min, weight) {
+    let size = start;
+    while (size > min) {
+      ctx.font = weight + " " + size + "px -apple-system, Helvetica, Arial, sans-serif";
+      if (lines.every((l) => ctx.measureText(l).width <= maxWidth)) break;
+      size -= 4;
+    }
+    return size;
+  }
+
+  function drawSlide(canvas, title, sub, color, disclaimer) {
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+    const lines = title.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 3);
+    const safeBottom = H - 90 - 30;
+    const titleSize = lines.length ? fitFont(ctx, lines, W * 0.8, 200, 60, "bold") : 0;
+    const subSize = sub ? fitFont(ctx, [sub], W * 0.8, Math.max(48, Math.round(titleSize * 0.45)), 36, "600") : 0;
+    const total = lines.length * titleSize * 1.15 + (sub ? subSize * 1.6 : 0);
+    let y = Math.max(60 + titleSize, (safeBottom + 60) / 2 - total / 2 + titleSize);
+    ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    ctx.shadowColor = color; ctx.shadowBlur = 40;
+    ctx.fillStyle = color;
+    lines.forEach((l) => {
+      ctx.font = "bold " + titleSize + "px -apple-system, Helvetica, Arial, sans-serif";
+      ctx.fillText(l, W / 2, y); ctx.fillText(l, W / 2, y);
+      y += titleSize * 1.15;
+    });
+    if (sub) {
+      y += subSize * 0.4;
+      ctx.font = "600 " + subSize + "px -apple-system, Helvetica, Arial, sans-serif";
+      ctx.shadowBlur = 20; ctx.fillStyle = "#ffffff";
+      ctx.fillText(sub, W / 2, y);
+    }
+    ctx.shadowBlur = 0;
+    if (disclaimer) drawDisclaimerOn(ctx, disclaimer, 0, H - 90, W, 90);
+  }
+
+  function drawDisclaimerOn(ctx, text, x, y, w, h) {
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.shadowBlur = 0;
+    const size = fitFont(ctx, [text], w * 0.94, 40, 22, "600");
+    ctx.font = "600 " + size + "px -apple-system, Helvetica, Arial, sans-serif";
+    ctx.fillText(text, x + w / 2, y + h / 2 + 2);
+    ctx.restore();
+  }
+
+  function slideTargetDisclaimer() {
+    if (!settingsInfo) return "";
+    const pl = settingsInfo.playlists.find((p) => p.name === $("slide-playlist").value);
+    return pl && pl.political ? (pl.disclaimer || "") : "";
+  }
+
+  function renderSlidePreview() {
+    const title = $("slide-title").value || "VOTE NOV 3";
+    const pl = settingsInfo && settingsInfo.playlists.find((p) => p.name === $("slide-playlist").value);
+    const disc = slideTargetDisclaimer();
+    drawSlide($("slide-preview"), title, $("slide-sub").value, $("slide-color").value, disc);
+    const note = $("slide-note");
+    if (pl && pl.political) note.textContent = disc ? "The \"paid for by\" strip is added on the Pi to everything in " + pl.label + "."
+      : "Set the \"paid for by\" line in Settings first; campaign slides won't play without it.";
+    else note.textContent = "The words drift slowly so nothing sits still on the screen.";
+  }
+  ["slide-title", "slide-sub", "slide-color", "slide-playlist"].forEach((id) => { $(id).oninput = renderSlidePreview; $(id).onchange = renderSlidePreview; });
+
+  $("btn-slide").onclick = () => {
+    const title = $("slide-title").value.trim();
+    if (!title) { toast("Type the words first.", true); return; }
+    const canvas = document.createElement("canvas"); canvas.width = 1280; canvas.height = 800;
+    drawSlide(canvas, title, $("slide-sub").value.trim(), $("slide-color").value, "");
+    const stem = title.split("\n")[0].replace(/[^A-Za-z0-9 _-]+/g, " ").trim().slice(0, 40) || "slide";
+    canvas.toBlob((blob) => {
+      const form = new FormData();
+      form.append("playlist", $("slide-playlist").value);
+      form.append("dwell", $("slide-dwell").value || 12);
+      form.append("slide", "1");
+      form.append("file", blob, stem + ".png");
+      $("btn-slide").disabled = true;
+      uploadForm(form, (ok, data) => {
+        $("btn-slide").disabled = false;
+        if (ok) { toast("Added \"" + stem + "\" to " + labelFor(data.playlist) + ". Converting it now."); loadMedia(); }
+      });
+    }, "image/png");
   };
 
   // ---- controls -----------------------------------------------------------
@@ -488,11 +786,16 @@
   $("btn-stop").onclick = () => act("/api/stop", {}, "Screen is dark.");
   $("btn-proj-on").onclick = () => act("/api/projector", { power: "on" });
   $("btn-proj-off").onclick = () => act("/api/projector", { power: "off" });
+  $("btn-proj-mute").onclick = () => act("/api/projector", { mute: !status.projector.muted });
+  $("proj-input").onchange = () => act("/api/projector", { input: $("proj-input").value });
   $("btn-restart").onclick = () => act("/api/restart_player", {}, "Player restarted.");
+  $("btn-test-alert").onclick = () => act("/api/test_alert", {});
   $("btn-log").onclick = async () => {
     try {
       const d = await api("/api/log");
-      $("log").textContent = ["-- app --"].concat(d.app.slice(-60), ["", "-- mpv --"], d.mpv).join("\n");
+      const lines = ["-- app --"].concat(d.app.slice(-60), ["", "-- mpv --"], d.mpv);
+      if (d.processing && d.processing.recent.length) lines.push("", "-- conversions --", ...d.processing.recent);
+      $("log").textContent = lines.join("\n");
       $("log").hidden = false;
     } catch (e) { toast(e.message, true); }
   };
@@ -504,44 +807,139 @@
     try { await api("/api/volume", { volume: Number(vol.value) }); } catch (e) { toast(e.message, true); }
   };
 
-  // ---- schedule and settings ---------------------------------------------
+  // ---- schedule -----------------------------------------------------------
+  function schedKinds() {
+    const sk = $("sched-start-kind").value, ek = $("sched-end-kind").value;
+    $("sched-start-time-wrap").hidden = sk !== "time"; $("sched-start-offset-wrap").hidden = sk === "time";
+    $("sched-end-time-wrap").hidden = ek !== "time"; $("sched-end-offset-wrap").hidden = ek === "time";
+  }
+  $("sched-start-kind").onchange = schedKinds; $("sched-end-kind").onchange = schedKinds;
+
+  function seasonRow(season) {
+    const row = document.createElement("div"); row.className = "season";
+    row.innerHTML = '<label class="full">Name <input type="text" class="s-name" maxlength="40"></label>' +
+      '<label>From <input type="text" class="s-from" placeholder="10-01" inputmode="numeric"></label>' +
+      '<label>To <input type="text" class="s-to" placeholder="10-31" inputmode="numeric"></label>' +
+      '<label class="full">Show <select class="s-playlist"></select></label>' +
+      '<div class="full"><button class="tiny danger s-remove">Remove season</button></div>';
+    row.querySelector(".s-name").value = season.name || "";
+    row.querySelector(".s-from").value = season.from || "";
+    row.querySelector(".s-to").value = season.to || "";
+    const sel = row.querySelector(".s-playlist");
+    (mediaInfo ? mediaInfo.playlists : []).forEach((pl) => { if (pl.mode !== "loop") return; const o = document.createElement("option"); o.value = pl.name; o.textContent = pl.label; sel.appendChild(o); });
+    if (season.playlist) { if (![...sel.options].some((o) => o.value === season.playlist)) { const o = document.createElement("option"); o.value = season.playlist; o.textContent = season.playlist; sel.appendChild(o); } sel.value = season.playlist; }
+    row.querySelector(".s-remove").onclick = () => row.remove();
+    return row;
+  }
+  $("btn-add-season").onclick = () => $("seasons").appendChild(seasonRow({ name: "", from: "", to: "", playlist: $("sched-playlist").value }));
+
+  function readSeasons() {
+    return [...document.querySelectorAll("#seasons .season")].map((row) => ({
+      name: row.querySelector(".s-name").value, from: row.querySelector(".s-from").value.trim(),
+      to: row.querySelector(".s-to").value.trim(), playlist: row.querySelector(".s-playlist").value,
+    })).filter((s) => s.from || s.to);
+  }
+
+  $("btn-save-sched").onclick = async () => {
+    const sk = $("sched-start-kind").value, ek = $("sched-end-kind").value;
+    const body = { schedule: {
+      enabled: $("sched-enabled").checked,
+      start: sk === "time" ? $("sched-start").value : "sunset",
+      start_offset: sk === "time" ? 0 : Number($("sched-start-offset").value || 0),
+      end: ek === "time" ? $("sched-end").value : "sunrise",
+      end_offset: ek === "time" ? 0 : -Number($("sched-end-offset").value || 0),
+      playlist: $("sched-playlist").value, projector_power: $("sched-proj").checked },
+      seasons: readSeasons() };
+    await act("/api/settings", body, "Schedule saved.");
+    loadSettings();
+  };
+
+  // ---- settings -----------------------------------------------------------
   async function loadSettings() {
     try { settingsInfo = await api("/api/settings"); } catch (e) { return; }
     const s = settingsInfo.schedule;
     $("sched-enabled").checked = !!s.enabled;
-    $("sched-start").value = s.start; $("sched-end").value = s.end;
+    $("sched-start-kind").value = (s.start === "sunset" || s.start === "sunrise") ? "sunset" : "time";
+    $("sched-start").value = /^\d/.test(s.start) ? s.start : "19:00";
+    $("sched-start-offset").value = s.start_offset || 0;
+    $("sched-end-kind").value = s.end === "sunrise" ? "sunrise" : "time";
+    $("sched-end").value = /^\d/.test(s.end) ? s.end : "23:00";
+    $("sched-end-offset").value = -(s.end_offset || 0);
+    schedKinds();
     $("sched-proj").checked = !!s.projector_power;
     if (mediaInfo) $("sched-playlist").value = s.playlist;
+    $("seasons").innerHTML = "";
+    (settingsInfo.seasons || []).forEach((season) => $("seasons").appendChild(seasonRow(season)));
+
     const pr = settingsInfo.projector;
     $("set-proj-enabled").checked = !!pr.enabled;
     $("set-proj-host").value = pr.host || "";
     $("set-proj-input").value = pr.input || "";
+    $("set-proj-mute").checked = !!pr.mute_when_dark;
+    $("set-lamp-hours").value = pr.lamp_warn_hours || 3500;
     $("set-proj-password").placeholder = settingsInfo.projector_password_set ? "unchanged (a password is set)" : "none";
     $("set-image-seconds").value = settingsInfo.image_seconds;
+    const pc = settingsInfo.processing || {};
+    $("set-proc-enabled").checked = !!pc.enabled; $("set-proc-shows").checked = !!pc.render_shows;
+    $("set-crossfade").value = pc.crossfade_seconds || 2;
+    $("proc-info").textContent = settingsInfo.processing_available ? "ffmpeg is installed; encoding with " + settingsInfo.encoder + "." : "ffmpeg is not installed on the Pi, so these do nothing yet.";
+    const dim = settingsInfo.dim || {};
+    $("set-dim-enabled").checked = !!dim.enabled; $("set-dim-start").value = dim.start || "22:00"; $("set-dim-end").value = dim.end || "23:59"; $("set-dim-level").value = dim.level || 60;
+    const loc = settingsInfo.location || {};
+    $("set-lat").value = loc.lat; $("set-lon").value = loc.lon;
+    const al = settingsInfo.alerts || {};
+    $("set-alerts-enabled").checked = !!al.enabled; $("set-ntfy").value = al.ntfy_url || "";
+
     const audio = $("set-audio"); audio.innerHTML = "";
     const devices = [{ name: "auto", description: "Automatic" }].concat(settingsInfo.audio_devices || []);
-    if (!devices.some((d) => d.name === settingsInfo.audio_device))
-      devices.push({ name: settingsInfo.audio_device, description: settingsInfo.audio_device });
+    if (!devices.some((d) => d.name === settingsInfo.audio_device)) devices.push({ name: settingsInfo.audio_device, description: settingsInfo.audio_device });
     devices.forEach((d) => {
       const o = document.createElement("option"); o.value = d.name;
       o.textContent = d.description && d.description !== d.name ? d.description + " (" + d.name + ")" : d.name;
       audio.appendChild(o);
     });
     audio.value = settingsInfo.audio_device;
-  }
 
-  $("btn-save-sched").onclick = async () => {
-    await act("/api/settings", { schedule: {
-      enabled: $("sched-enabled").checked, start: $("sched-start").value, end: $("sched-end").value,
-      playlist: $("sched-playlist").value, projector_power: $("sched-proj").checked } }, "Schedule saved.");
-    loadSettings();
-  };
+    // disclaimers, one per political playlist
+    const holder = $("disclaimers"); holder.innerHTML = "";
+    const political = settingsInfo.playlists.filter((p) => p.political);
+    if (!political.length) holder.innerHTML = '<div class="muted">No playlist is marked as political advertising.</div>';
+    political.forEach((pl) => {
+      const wrap = document.createElement("div");
+      const lbl = document.createElement("label"); lbl.className = "field"; lbl.textContent = pl.label + ": strip text";
+      const input = document.createElement("input"); input.type = "text"; input.maxLength = 200; input.value = pl.disclaimer || "";
+      input.placeholder = "Political advertising paid for by Friends of Jane Doe";
+      lbl.appendChild(input); wrap.appendChild(lbl);
+      const canvas = document.createElement("canvas"); canvas.className = "preview"; canvas.width = 1280; canvas.height = 90;
+      const draw = () => { const ctx = canvas.getContext("2d"); ctx.clearRect(0, 0, 1280, 90); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, 1280, 90); if (input.value.trim()) drawDisclaimerOn(ctx, input.value.trim(), 0, 0, 1280, 90); };
+      draw(); input.oninput = draw;
+      wrap.appendChild(canvas);
+      const row = document.createElement("div"); row.className = "row";
+      const save = document.createElement("button"); save.className = "small primary"; save.textContent = "Save the " + pl.label + " strip";
+      save.onclick = () => {
+        const text = input.value.trim();
+        if (!text) { toast("Type the line first. To stop treating " + pl.label + " as political advertising, edit config.json on the Pi.", true); return; }
+        canvas.toBlob((blob) => {
+          const form = new FormData(); form.append("playlist", pl.name); form.append("text", text); form.append("image", blob, pl.name + ".png");
+          act("/api/disclaimer", form, "Saved. Files in " + pl.label + " will be re-made with the strip.").then(() => { loadSettings(); loadMedia(); });
+        }, "image/png");
+      };
+      row.appendChild(save); wrap.appendChild(row);
+      holder.appendChild(wrap);
+    });
+    renderSlidePreview();
+  }
 
   $("btn-save-settings").onclick = async () => {
     const body = {
-      projector: { enabled: $("set-proj-enabled").checked, host: $("set-proj-host").value, input: $("set-proj-input").value },
+      projector: { enabled: $("set-proj-enabled").checked, host: $("set-proj-host").value, input: $("set-proj-input").value,
+        mute_when_dark: $("set-proj-mute").checked, lamp_warn_hours: Number($("set-lamp-hours").value || 3500) },
       audio_device: $("set-audio").value,
       image_seconds: Number($("set-image-seconds").value),
+      processing: { enabled: $("set-proc-enabled").checked, render_shows: $("set-proc-shows").checked, crossfade_seconds: Number($("set-crossfade").value) },
+      dim: { enabled: $("set-dim-enabled").checked, start: $("set-dim-start").value, end: $("set-dim-end").value, level: Number($("set-dim-level").value) },
+      location: { lat: Number($("set-lat").value), lon: Number($("set-lon").value) },
+      alerts: { enabled: $("set-alerts-enabled").checked, ntfy_url: $("set-ntfy").value.trim() },
     };
     if ($("set-proj-password").value) body.projector.password = $("set-proj-password").value;
     const newPin = $("set-pin").value.trim();
@@ -558,7 +956,7 @@
   // ---- go -----------------------------------------------------------------
   refresh(); loadMedia(); loadSettings();
   setInterval(() => { if (!document.hidden) refresh(); }, 3000);
-  setInterval(() => { if (!document.hidden) loadMedia(); }, 60000);
+  setInterval(() => { if (!document.hidden) loadMedia(); }, 20000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) { refresh(); loadMedia(); } });
 })();
 </script>
