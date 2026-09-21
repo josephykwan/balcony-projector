@@ -3,21 +3,39 @@
   "pin": "",
   "media_dir": "~/media",
   "playlists": {
-    "halloween": { "label": "Halloween", "mode": "loop" },
-    "campaign": { "label": "Campaign", "mode": "loop" },
-    "movies": { "label": "Movies", "mode": "once" }
+    "halloween": {
+      "label": "Halloween",
+      "mode": "loop"
+    },
+    "campaign": {
+      "label": "Campaign",
+      "mode": "loop",
+      "political": true,
+      "disclaimer": ""
+    },
+    "movies": {
+      "label": "Movies",
+      "mode": "once"
+    }
   },
   "volume": 80,
+  "resume_on_boot": true,
   "audio_device": "auto",
   "image_seconds": 12,
-  "mpv_video_args": ["--vo=gpu", "--gpu-context=drm", "--hwdec=auto-safe"],
+  "mpv_video_args": [
+    "--vo=gpu",
+    "--gpu-context=drm",
+    "--hwdec=auto-safe"
+  ],
   "mpv_extra_args": [],
   "schedule": {
     "enabled": false,
-    "start": "19:00",
+    "start": "sunset",
+    "start_offset": 15,
     "end": "23:00",
+    "end_offset": 0,
     "playlist": "halloween",
-    "projector_power": true
+    "projector_power": false
   },
   "projector": {
     "enabled": false,
@@ -25,6 +43,44 @@
     "port": 4352,
     "password": "",
     "input": "31",
-    "warmup_seconds": 60
+    "warmup_seconds": 60,
+    "mute_when_dark": false,
+    "lamp_warn_hours": 3500
+  },
+  "processing": {
+    "enabled": false,
+    "encoder": "auto",
+    "crossfade_seconds": 2,
+    "render_shows": true,
+    "flash_warn_per_minute": 3
+  },
+  "location": {
+    "lat": 32.78,
+    "lon": -96.8,
+    "name": "Dallas"
+  },
+  "seasons": [
+    {
+      "name": "Halloween",
+      "from": "10-01",
+      "to": "10-31",
+      "playlist": "halloween"
+    },
+    {
+      "name": "Campaign",
+      "from": "2026-09-16",
+      "to": "2026-11-03",
+      "playlist": "campaign"
+    }
+  ],
+  "dim": {
+    "enabled": false,
+    "start": "22:00",
+    "end": "23:59",
+    "level": 60
+  },
+  "alerts": {
+    "enabled": false,
+    "ntfy_url": ""
   }
 }

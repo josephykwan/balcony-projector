@@ -4,7 +4,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/josephykwan/balcony-projector/main/get.sh | sudo bash
 #
 # It clones (or updates) the project into the invoking user's home folder and
-# runs install.sh with quiet boot, the projector cable, and the Dallas time zone.
+# runs install.sh with quiet boot, the network share, and the Dallas time zone.
 # Set REPO, BRANCH, TIMEZONE or INSTALL_ARGS in the environment to change that:
 #
 #   curl -fsSL .../get.sh | sudo INSTALL_ARGS="--quiet-boot" bash
@@ -14,7 +14,7 @@ set -euo pipefail
 REPO="${REPO:-https://github.com/josephykwan/balcony-projector.git}"
 BRANCH="${BRANCH:-main}"
 TIMEZONE="${TIMEZONE:-America/Chicago}"
-INSTALL_ARGS="${INSTALL_ARGS:---quiet-boot --projector-link --timezone $TIMEZONE}"
+INSTALL_ARGS="${INSTALL_ARGS:---quiet-boot --share --timezone $TIMEZONE}"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Run this with sudo:  curl -fsSL .../get.sh | sudo bash"

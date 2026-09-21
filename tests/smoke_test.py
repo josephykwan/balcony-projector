@@ -344,6 +344,16 @@ def main():
         _, s = api.call("/api/status")
         check("show keeps looping past its end", s["player"]["mode"] == "loop" and s["player"]["file"], s["player"])
 
+        # --- shuffle ----------------------------------------------------------
+        st, body = api.call("/api/shuffle", {"shuffle": True})
+        check("shuffle on", st == 200 and body["player"]["shuffle"], body)
+        s = api.wait(lambda s: s["player"]["file"] is not None, 10, "shuffled playlist to load")
+        check("shuffle plays the plain playlist, not the stitched show",
+              s["player"]["mode"] == "loop" and not s["player"]["show"] and s["player"]["playlist_count"] == 3, s["player"])
+        st, body = api.call("/api/shuffle", {"shuffle": False})
+        s = api.wait(lambda s: s["player"]["show"], 10, "stitched show after shuffle off")
+        check("shuffle off goes back to the stitched show", st == 200 and s["player"]["show"], s["player"])
+
         # --- playlist edits ---------------------------------------------------
         st, body = api.call("/api/item", {"playlist": "halloween", "file": "ghost 2.mp4", "enabled": False})
         check("switch a file off", st == 200 and not [f for f in body["playlist"]["files"] if f["name"] == "ghost 2.mp4"][0]["enabled"], body)

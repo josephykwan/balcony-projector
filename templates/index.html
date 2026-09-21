@@ -119,6 +119,7 @@
     <div class="row">
       <button id="btn-pause">Pause</button>
       <button id="btn-next">Next</button>
+      <button id="btn-shuffle">Shuffle: off</button>
       <button id="btn-stop" class="danger">Go dark</button>
     </div>
     <label class="field">Volume <span id="volume-label"></span>
@@ -133,7 +134,7 @@
     <div class="muted" id="processing-note" style="margin-top:10px" hidden></div>
   </section>
 
-  <section class="card" id="projector-card">
+  <section class="card" id="projector-card" hidden>
     <div class="label">Projector</div>
     <p class="big" id="proj-state">Not controlled</p>
     <div class="muted" id="proj-sub"></div>
@@ -182,7 +183,7 @@
 
   <details class="card" id="files-card">
     <summary>Manage videos</summary>
-    <p class="hint">Files also work if you copy them straight into the media folder on the Pi: <span id="media-dir"></span></p>
+    <p class="hint">Files must already be in the Pi's format (H.264 MP4, 1280x800, 30 fps); the laptop studio's "prepare" does that. You can also drop files straight into the media folder on the Pi: <span id="media-dir"></span></p>
     <label class="field">Playlist <select id="files-playlist"></select></label>
     <label class="field">Upload a video or picture
       <input type="file" id="file-input" class="up" accept="video/*,image/*">
@@ -191,10 +192,10 @@
     <div class="progress" id="upload-progress" hidden><div id="upload-bar"></div></div>
     <label class="check"><input type="checkbox" id="mirror"> Show pictures as seen from the balcony (mirrored)</label>
     <div class="list" id="files-list" style="margin-top:14px"></div>
-    <p class="hint">Hologram mode: <b>invert</b> turns dark-on-white artwork into glowing text on black. <b>Knockout</b> makes white areas black and keeps other colours. Black disappears on the mesh, so figures look like they float.</p>
+    <p class="hint" id="hologram-hint" hidden>Hologram mode: <b>invert</b> turns dark-on-white artwork into glowing text on black. <b>Knockout</b> makes white areas black and keeps other colours. Black disappears on the mesh, so figures look like they float.</p>
   </details>
 
-  <details class="card" id="slide-card">
+  <details class="card" id="slide-card" hidden>
     <summary>Make a slide</summary>
     <p class="hint">A few big glowing words on black. Keep it to what a driver can read in three seconds.</p>
     <label class="field">Words (one line per row, up to three)
@@ -240,6 +241,7 @@
     <div class="section">
       <h3>Sound and pictures</h3>
       <label class="field">Play sound through <select id="set-audio"></select></label>
+      <label class="check"><input type="checkbox" id="set-resume"> After a power cut, carry on with the last show</label>
       <label class="field">Show each new picture for (seconds) <input type="number" id="set-image-seconds" min="2" max="600"></label>
       <label class="check"><input type="checkbox" id="set-proc-enabled"> Convert uploads so they loop smoothly (needs ffmpeg)</label>
       <label class="check"><input type="checkbox" id="set-proc-shows"> Stitch each playlist into one seamless show with crossfades</label>
@@ -440,6 +442,7 @@
     $("btn-pause").disabled = !playing;
     $("btn-next").disabled = !playing || p.mode !== "loop" || p.playlist_count < 2;
     $("btn-stop").disabled = !playing;
+    $("btn-shuffle").textContent = p.shuffle ? "Shuffle: on" : "Shuffle: off";
     $("dim-note").hidden = !(p.dim_level && p.dim_level < 100);
     $("dim-note").textContent = "Quiet hours: picture dimmed to " + p.dim_level + "%.";
 
@@ -449,11 +452,8 @@
 
     // projector
     const pr = status.projector;
-    if (!pr.enabled) {
-      $("proj-state").textContent = "Not controlled";
-      $("proj-sub").textContent = "Turn on projector control in Settings to switch it from here.";
-      $("proj-buttons").hidden = true; $("proj-buttons-2").hidden = true;
-    } else {
+    $("projector-card").hidden = !pr.enabled;
+    if (pr.enabled) {
       const words = { on: "On", off: "Off (standby)", cooling: "Cooling down", warming: "Warming up", unknown: "Unknown" };
       $("proj-state").textContent = pr.busy || (words[pr.power] || "Unknown") + (pr.muted ? ", picture blanked" : "");
       let sub = pr.reachable ? "" : "Not answering.";
@@ -600,6 +600,7 @@
     const pl = mediaInfo.playlists.find((x) => x.name === $("files-playlist").value);
     if (!pl) return;
     if (!pl.files.length) { holder.innerHTML = '<div class="muted">Nothing in this folder yet.</div>'; return; }
+    const procOn = !!(settingsInfo && settingsInfo.processing_on);
     pl.files.forEach((f, idx) => {
       const item = document.createElement("div"); item.className = "item" + (f.enabled ? "" : " off");
       item.style.flexWrap = "wrap";
@@ -607,7 +608,7 @@
       top.appendChild(thumbEl(pl.name, f));
       const name = document.createElement("div"); name.className = "name";
       const b = document.createElement("b"); b.textContent = f.label;
-      if (f.status !== "ready") { const badge = document.createElement("span"); badge.className = "badge " + (f.status === "failed" || f.status === "waiting" ? "bad" : "warn"); badge.textContent = STATUS_WORDS[f.status] || f.status; b.appendChild(badge); }
+      if (procOn && f.status !== "ready") { const badge = document.createElement("span"); badge.className = "badge " + (f.status === "failed" || f.status === "waiting" ? "bad" : "warn"); badge.textContent = STATUS_WORDS[f.status] || f.status; b.appendChild(badge); }
       if (f.flash_warning) { const badge = document.createElement("span"); badge.className = "badge warn"; badge.textContent = "flashes"; b.appendChild(badge); }
       const sub = document.createElement("span"); sub.className = "sub";
       sub.textContent = [f.duration ? mmss(f.duration) : (f.kind === "image" ? "picture" : ""), mb(f.bytes),
@@ -623,18 +624,18 @@
       const onoff = document.createElement("button"); onoff.className = "tiny"; onoff.textContent = f.enabled ? "Switch off" : "Switch on";
       onoff.onclick = async () => { await act("/api/item", { playlist: pl.name, file: f.name, enabled: !f.enabled }); loadMedia(); };
       controls.appendChild(onoff);
-      if (f.from_image || f.kind === "image") {
+      if (procOn && (f.from_image || f.kind === "image")) {
         const dwell = document.createElement("input"); dwell.type = "number"; dwell.min = 2; dwell.max = 600; dwell.value = f.dwell; dwell.title = "Seconds on screen"; dwell.style.width = "70px";
         dwell.onchange = async () => { await act("/api/item", { playlist: pl.name, file: f.name, dwell: Number(dwell.value) }, "Will re-make it at " + dwell.value + " seconds."); loadMedia(); };
         controls.appendChild(dwell);
         const lbl = document.createElement("span"); lbl.className = "muted"; lbl.style.alignSelf = "center"; lbl.textContent = "s"; controls.appendChild(lbl);
       }
-      const holo = document.createElement("select"); holo.title = "Hologram mode";
+      const holo = document.createElement("select"); holo.title = "Hologram mode"; holo.hidden = !procOn;
       [["off", "Hologram: off"], ["invert", "Hologram: invert"], ["knockout", "Hologram: knockout"]].forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; holo.appendChild(o); });
       holo.value = f.hologram;
       holo.onchange = async () => { await act("/api/item", { playlist: pl.name, file: f.name, hologram: holo.value }, "Re-making it."); loadMedia(); };
       controls.appendChild(holo);
-      if (f.status === "failed" || f.status === "ready" || f.status === "unprocessed") {
+      if (procOn && (f.status === "failed" || f.status === "ready" || f.status === "unprocessed")) {
         const redo = document.createElement("button"); redo.className = "tiny"; redo.textContent = "Redo";
         redo.onclick = async () => { await act("/api/item", { playlist: pl.name, file: f.name, reprocess: true }, "Converting again."); loadMedia(); };
         controls.appendChild(redo);
@@ -784,6 +785,7 @@
   // ---- controls -----------------------------------------------------------
   $("btn-pause").onclick = () => act(status.player.paused ? "/api/resume" : "/api/pause");
   $("btn-next").onclick = () => act("/api/next");
+  $("btn-shuffle").onclick = () => act("/api/shuffle", { shuffle: !status.player.shuffle }, status.player.shuffle ? "Playing in order." : "Playing in a random order.");
   $("btn-stop").onclick = () => act("/api/stop", {}, "Screen is dark.");
   $("btn-proj-on").onclick = () => act("/api/projector", { power: "on" });
   $("btn-proj-off").onclick = () => act("/api/projector", { power: "off" });
@@ -883,7 +885,11 @@
     const pc = settingsInfo.processing || {};
     $("set-proc-enabled").checked = !!pc.enabled; $("set-proc-shows").checked = !!pc.render_shows;
     $("set-crossfade").value = pc.crossfade_seconds || 2;
-    $("proc-info").textContent = settingsInfo.processing_available ? "ffmpeg is installed; encoding with " + settingsInfo.encoder + "." : "ffmpeg is not installed on the Pi, so these do nothing yet.";
+    $("proc-info").textContent = !pc.enabled ? "Off: files play exactly as uploaded. Prepare them on the laptop first (see the README)."
+      : settingsInfo.processing_available ? "On: ffmpeg is installed; encoding with " + settingsInfo.encoder + "." : "On, but ffmpeg is not installed on the Pi, so nothing is converted.";
+    $("slide-card").hidden = !settingsInfo.processing_on;
+    $("hologram-hint").hidden = !settingsInfo.processing_on;
+    $("set-resume").checked = !!settingsInfo.resume_on_boot;
     const dim = settingsInfo.dim || {};
     $("set-dim-enabled").checked = !!dim.enabled; $("set-dim-start").value = dim.start || "22:00"; $("set-dim-end").value = dim.end || "23:59"; $("set-dim-level").value = dim.level || 60;
     const loc = settingsInfo.location || {};
@@ -936,6 +942,7 @@
       projector: { enabled: $("set-proj-enabled").checked, host: $("set-proj-host").value, input: $("set-proj-input").value,
         mute_when_dark: $("set-proj-mute").checked, lamp_warn_hours: Number($("set-lamp-hours").value || 3500) },
       audio_device: $("set-audio").value,
+      resume_on_boot: $("set-resume").checked,
       image_seconds: Number($("set-image-seconds").value),
       processing: { enabled: $("set-proc-enabled").checked, render_shows: $("set-proc-shows").checked, crossfade_seconds: Number($("set-crossfade").value) },
       dim: { enabled: $("set-dim-enabled").checked, start: $("set-dim-start").value, end: $("set-dim-end").value, level: Number($("set-dim-level").value) },

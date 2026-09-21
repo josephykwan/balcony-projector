@@ -51,6 +51,7 @@ DEFAULT_CONFIG = {
         "movies": {"label": "Movies", "mode": "once"},
     },
     "volume": 80,
+    "resume_on_boot": True,
     "audio_device": "auto",
     "image_seconds": 12,
     "mpv_video_args": ["--vo=gpu", "--gpu-context=drm", "--hwdec=auto-safe"],
@@ -70,7 +71,9 @@ DEFAULT_CONFIG = {
         {"name": "Campaign", "from": "2026-09-16", "to": "2026-11-03", "playlist": "campaign"},
     ],
     "dim": {"enabled": False, "start": "22:00", "end": "23:59", "level": 60},
-    "processing": {"enabled": True, "encoder": "auto", "crossfade_seconds": 2,
+    # Off by default: the Pi is a player. The laptop "studio" prepares files
+    # (see CLAUDE.md). Turn this on only for a Pi with ffmpeg and spare time.
+    "processing": {"enabled": False, "encoder": "auto", "crossfade_seconds": 2,
                    "render_shows": True, "flash_warn_per_minute": 3},
     "projector": {
         "enabled": False,
@@ -170,6 +173,7 @@ class State:
         "playlist": None,
         "file": None,
         "volume": None,
+        "shuffle": False,
         "last_window_id": None,  # which scheduled evening we last acted on
     }
 
@@ -401,9 +405,12 @@ class Player:
         threading.Thread(target=self._watchdog, daemon=True).start()
         with self.lock:
             self._launch()
-        self._resume()
+        self._resume(boot=True)
 
-    def _resume(self):
+    def _resume(self, boot=False):
+        if boot and not self.cfg.data.get("resume_on_boot", True):
+            self.state.update(mode="off", file=None)
+            return
         if self.state.get("mode") == "loop" and self.state.get("playlist"):
             try:
                 self.play(self.state.get("playlist"))
@@ -596,7 +603,10 @@ class Player:
             mode = info["mode"]
             if mode == "once":
                 raise ValueError("Pick one movie from the %s list." % info["label"])
-            show = self.lib.show_for(playlist) if self.cfg.data["processing"].get("render_shows", True) else None
+            shuffle = bool(self.state.get("shuffle"))
+            show = None
+            if self.cfg.data["processing"].get("render_shows", True) and not shuffle:
+                show = self.lib.show_for(playlist)
             if show:
                 paths = [show["path"]]
                 segments = show["segments"]
@@ -620,6 +630,8 @@ class Player:
             self.mpv.command("loadfile", paths[0], "replace")
             for path in paths[1:]:
                 self.mpv.command("loadfile", path, "append")
+            if mode == "loop" and self.state.get("shuffle") and len(paths) > 1:
+                self.mpv.command("playlist-shuffle")
             self.mpv.set("pause", False)
             self.ignore_idle = False
             self.last_error = ""
@@ -665,6 +677,12 @@ class Player:
                 self.mpv.command("seek", target, "absolute+exact")
             else:
                 self.mpv.command("playlist-next" if direction > 0 else "playlist-prev", "weak")
+
+    def set_shuffle(self, on):
+        """Shuffle the order of a looping playlist. Reloads it if it is playing."""
+        self.state.update(shuffle=bool(on))
+        if self.state.get("mode") == "loop" and self.state.get("playlist"):
+            self.play(self.state.get("playlist"))
 
     def set_volume(self, volume):
         volume = max(0, min(100, int(volume)))
@@ -727,6 +745,7 @@ class Player:
             "playlist_count": 0,
             "playlist_pos": None,
             "show": bool(self.segments),
+            "shuffle": bool(self.state.get("shuffle")),
             "dim_level": self.dim_level,
         }
         if not running or self.state.get("mode") == "off":
@@ -1248,12 +1267,13 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
                 elif not pl["files"]:
                     out.append("The %s folder is empty. Copy videos into %s."
                                % (pl["label"], pl["dir"]))
-        if cfg.data["processing"].get("enabled", True) and not processor.available:
+        if cfg.data["processing"].get("enabled") and not processor.available:
             out.append("ffmpeg isn't installed, so uploads play exactly as they are: no smooth "
                        "loops, hologram mode or pictures with motion. On the Pi run: "
                        "sudo apt install ffmpeg")
         for pl in playlists:
-            if pl["political"] and pl["exists"] and not pl["disclaimer"] and pl["files"]:
+            if (processor.enabled() and pl["political"] and pl["exists"]
+                    and not pl["disclaimer"] and pl["files"]):
                 out.append("%s files won't play until the 'paid for by' line is set under Settings. "
                            "Texas requires it on political advertising." % pl["label"])
             for f in pl["files"]:
@@ -1372,6 +1392,15 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
     def api_previous():
         return _skip(-1)
 
+    @app.route("/api/shuffle", methods=["POST"])
+    def api_shuffle():
+        body = request.get_json(silent=True) or {}
+        try:
+            player.set_shuffle(bool(body.get("shuffle")))
+        except (ValueError, MPVError) as exc:
+            return fail(str(exc))
+        return jsonify({"ok": True, "player": player.status()})
+
     @app.route("/api/volume", methods=["POST"])
     def api_volume():
         body = request.get_json(silent=True) or {}
@@ -1423,6 +1452,8 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
             "dim": cfg.data.get("dim", {}),
             "processing": cfg.data.get("processing", {}),
             "processing_available": processor.available,
+            "processing_on": processor.enabled(),
+            "resume_on_boot": bool(cfg.data.get("resume_on_boot", True)),
             "encoder": processor.encoder,
             "alerts": {"enabled": bool(cfg.data["alerts"].get("enabled")),
                        "ntfy_url": cfg.data["alerts"].get("ntfy_url", ""),
@@ -1563,6 +1594,8 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
                         pcfg["political"] = bool(raw["political"])
                     if "label" in raw:
                         pcfg["label"] = str(raw["label"]).strip()[:40] or spec["label"]
+            if "resume_on_boot" in body:
+                cfg.data["resume_on_boot"] = bool(body["resume_on_boot"])
             if "audio_device" in body:
                 device = str(body["audio_device"] or "auto").strip()
                 cfg.data["audio_device"] = device

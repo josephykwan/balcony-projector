@@ -23,6 +23,12 @@ if command -v nmcli >/dev/null 2>&1 && nmcli -t -f NAME connection show 2>/dev/n
   nmcli connection delete projector-link >/dev/null 2>&1 || true
 fi
 
+if [[ -f /etc/samba/smb.conf ]] && grep -q "balcony-projector share (start)" /etc/samba/smb.conf; then
+  echo "==> Removing the media network share"
+  sed -i '/# balcony-projector share (start)/,/# balcony-projector share (end)/d' /etc/samba/smb.conf
+  systemctl restart smbd >/dev/null 2>&1 || true
+fi
+
 for f in /boot/firmware/cmdline.txt /boot/cmdline.txt /boot/firmware/config.txt /boot/config.txt; do
   if [[ -f "$f.balcony-backup" ]]; then
     echo "==> Restoring $f"

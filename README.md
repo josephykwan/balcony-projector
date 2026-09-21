@@ -1,8 +1,8 @@
 # Balcony Projector
 
 A Raspberry Pi that loops videos on a see-through screen hung on the balcony,
-facing the street. You run it from your phone: pick a show, go dark, set the
-evening schedule, make a slide, and turn the projector on and off.
+facing the street. You run it from your phone: pick a show, go dark, shuffle,
+set an optional evening schedule. Content is made on a laptop and sent to the Pi.
 
 Nothing but the video is ever drawn on the screen. If something goes wrong, the
 phone page tells you what to do.
@@ -10,42 +10,50 @@ phone page tells you what to do.
 ![The phone page](docs/screenshots/home.png)
 
 More: [manage videos](docs/screenshots/manage-videos.png),
-[make a slide](docs/screenshots/make-a-slide.png), [settings](docs/screenshots/settings.png).
+[settings](docs/screenshots/settings.png).
 
-## What you need
+## The setup
 
-- Raspberry Pi 4 with Raspberry Pi OS Lite (64-bit). No desktop.
-- The Pi's HDMI 0 port (the one next to the power jack) into the projector's HDMI 1.
-- Videos on the Pi, in folders under `~/media`:
+- **Screen:** 5 x 9 ft gray holographic rear-projection mesh at the balcony
+  railing. Black in a video is invisible on it; anything bright floats in midair.
+- **Projector:** Optoma ML750ST on the window sill, projecting through the glass
+  to the screen. It has one HDMI port and no network port. You turn it on and off
+  by hand; it needs no cooldown. Set "rear projection" in its own menu so text
+  reads correctly from the street.
+- **Player:** Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), no desktop. The
+  Pi's HDMI 0 port (the one next to the power jack) goes straight into the
+  projector. The Pi stays on all the time and keeps looping whatever was last
+  chosen, so the show is there the moment the projector warms up.
+- **Videos** live on the Pi in folders under `~/media`:
   - `halloween` loops all evening
   - `campaign` loops all evening and is treated as political advertising (see below)
   - `movies` play once, then the screen goes dark
-- Optional: an Ethernet cable from the Pi to the projector's LAN port, so the
-  remote can turn the projector on and off.
 
 ## Install
 
-On the Pi, in this folder:
-
-```bash
-sudo ./install.sh --quiet-boot --projector-link --timezone America/Chicago
-```
-
-Or, once the project is on GitHub, in one line (edit the OWNER in `get.sh` first):
+On the Pi, in one line:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/josephykwan/balcony-projector/main/get.sh | sudo bash
 ```
 
-- `--quiet-boot` hides the boot text and login prompt so the street only ever
-  sees black or video. Reboot once afterwards.
-- `--projector-link` gives the Pi's Ethernet port the address `192.168.50.1`.
-  Set the projector's LAN address to `192.168.50.2` in its own menu.
-- `--timezone` sets the Pi's clock so the evening schedule fires at the right time.
+Or, from a copy of this folder on the Pi:
 
-It installs `mpv`, `python3-flask` and `ffmpeg`. When it finishes it prints the
-address for your phone, normally `http://balcony.local:8080/`. Add it to your
-phone's home screen.
+```bash
+sudo ./install.sh --quiet-boot --share --timezone America/Chicago
+```
+
+- It installs `mpv` and `python3-flask`, nothing else.
+- It sets the HDMI output to the projector's native 1280x800.
+- `--quiet-boot` hides the boot text and login prompt so the street only ever
+  sees black or video.
+- `--share` makes the `~/media` folder show up as a network drive on your laptop
+  (see "Adding videos").
+- `--timezone` sets the Pi's clock so the schedule fires at the right time.
+- `--projector-link` is only for projectors with a LAN port. The Optoma has none.
+
+Reboot once afterwards. The installer prints the address for your phone,
+normally `http://balcony.local:8080/`. Add it to your phone's home screen.
 
 To remove everything except your videos:
 
@@ -55,105 +63,99 @@ sudo ./uninstall.sh
 
 ## Using the phone page
 
-**On the screen now.** What is playing, with Pause, Next and Go dark. Go dark
-stops playback and leaves the screen black. If you turn on "blank the projector
-while the screen is dark" in Settings, the projector's own shutter closes too,
-which cuts the faint glow a projector puts on a dark screen.
+**On the screen now.** What is playing, with Pause, Next, Shuffle and Go dark.
+Go dark stops playback and leaves the screen black; turn the projector off by
+hand when you are done for the night.
 
-**Shows.** Tap Halloween or Campaign to loop everything in that folder. A
-"seamless" badge means the folder has been stitched into one file (see below).
-Movies are listed one by one; tap one to play it once.
+**Shows.** Tap Halloween or Campaign to loop everything in that folder. Movies
+are listed one by one; tap one to play it once.
 
-**Projector.** Turn on / Turn off, blank / show picture, and the input picker,
-once projector control is on in Settings. Turning on takes about a minute; the
-remote waits, then switches to HDMI 1. Turning off lets the projector cool down
-on its own fan. Never cut its power with a smart plug. Lamp hours and any fault
-the projector reports show up here and in the "Needs attention" box.
+**Evening schedule (optional).** The projector is switched by hand, but the
+schedule is still handy for changing what plays: for example the Halloween loop
+from sunset and dark at 11. Start at sunset (plus or minus some minutes) or at a
+set time; end at a set time or at sunrise. Seasons are date ranges that pick the
+show: `10-01` to `10-31` for Halloween every year, `2026-09-16` to `2026-11-03`
+for the campaign this year. The first matching season wins. If you start
+something yourself during the window, the schedule leaves it alone.
 
-**Evening schedule.** Start at sunset (plus or minus some minutes) or at a set
-time; end at a set time or at sunrise. Every evening the Pi turns the projector
-on, starts the show, and at the end goes dark and turns the projector off.
-Seasons are date ranges that pick the show: `10-01` to `10-31` for Halloween
-every year, `2026-09-16` to `2026-11-03` for the campaign this year. The first
-matching season wins; otherwise the default show plays. If you start something
-yourself during the window, the schedule leaves it alone.
+**After a power cut** the Pi carries on with the last show by itself, so a
+blip never leaves a dark screen. Turn that off under Settings if you prefer.
 
-**Manage videos.** Upload from the phone, or copy files straight into the
-folders on the Pi. Each file has: switch on/off, move up/down, seconds on
-screen (for pictures), hologram mode, Redo, Remove. Files copied in by hand are
-picked up within about half a minute.
+**Manage videos.** Upload from the phone, switch files on and off, reorder,
+remove.
 
-**Make a slide.** Type a few big words, pick a colour, see exactly what the
-screen will show, tap Add. The slide drifts slowly so nothing sits still.
-
-**Settings.** Projector connection, the campaign "paid for by" line, sound
-output, conversion options, quiet-hours dimming, location for sunset, phone
-alerts, and a PIN.
+**Settings.** Sound output, quiet-hours dimming, location for sunset, phone
+alerts, a PIN, and, for a projector with a LAN port, PJLink control.
 
 **PIN.** Anyone on your Wi-Fi can open the page. Set a 4 to 8 digit PIN in
 Settings and the page asks for it once per phone.
 
-## What happens to the files you add
+## Adding videos
 
-With `ffmpeg` installed (the installer adds it), every file goes through a
-background conversion the first time it is seen. It is never shown until it is
-done, and the original is kept in a hidden `.originals` folder.
+Every file on the Pi must already be in its native format: **H.264 MP4,
+1280x800, 30 frames a second, yuv420p, first and last frames identical** so it
+loops without a jump. The laptop studio's `prepare` step makes that from any
+video or picture (coming in the next phase; until then, export from your editor
+with those settings). The Pi plays files exactly as they arrive and never
+converts them.
 
-- Videos become H.264 MP4 at 1280x800 (the projector's own size), 30 frames a
-  second, letterboxed on black. Files that are already like that are left alone.
-- Pictures become 12-second clips (you can change the seconds) with a slow drift
-  and zoom, so nothing static burns into the projector, and they fade in and
-  out. Mostly-white pictures get "hologram: invert" automatically.
-- Each looping folder is also stitched into one seamless "show" file with
-  two-second crossfades, and the loop point lands inside a crossfade. That is
-  what plays when the badge says "seamless". It is re-made when files change,
-  which takes a few minutes on the Pi; the plain playlist plays until then.
-- Every file is checked for sudden brightness jumps. Anything strobing gets a
-  "flashes" badge and a warning, because it can bother drivers and people with
-  photosensitivity.
+Three ways to get a prepared file onto the Pi:
 
-**Hologram mode.** The screen is a gray mesh: black disappears and bright things
-seem to float. A black logo on a white background does the opposite of what you
-want, so:
+1. **The phone page's Upload button.** It works just as well from a laptop
+   browser: open `http://balcony.local:8080/` on the laptop, Manage videos, Upload.
+2. **The network drive**, if you installed with `--share`. On a Mac: Finder, Go,
+   Connect to Server, `smb://balcony.local/media`, connect as Guest. On Windows:
+   `\\balcony.local\media`. Drop files into the `halloween`, `campaign` or
+   `movies` folder. New files are noticed within about half a minute.
+3. **From the Terminal:**
+   `scp video.mp4 pi@balcony.local:media/halloween/`
 
-- **invert** flips it: white background becomes black (invisible), dark artwork
-  becomes bright. Right for logos and text on white.
-- **knockout** makes only the white areas black and keeps the other colours.
-  Right for colour artwork on white.
+Anyone on your Wi-Fi can write to the network drive; that is fine at home and
+the reason for the PIN on the phone page.
 
-Test on the real screen at night; what looks fine on a phone can wash out.
+## Content tips
+
+The mesh only shows what is bright, and the street is 30 to 60 feet away.
+
+- Pure black backgrounds, always. Anything dark gray shows up as a faint glow.
+- Big, bright, white text. One idea per slide, three or four words. Letters
+  should be at least an inch tall for every ten feet of viewing distance, so
+  six inches minimum for the far sidewalk, and bigger is better.
+- Avoid dim, muddy or heavily coloured visuals; saturated brand colours lose a
+  lot of light on the mesh. Use them as accents.
+- Slow transitions, one to two second fades. Nothing flashing faster than once
+  a second, and no sudden big motion toward the street, because drivers pass.
+- Test at dusk and again at full dark, from across the street, before leaving
+  something running all evening.
 
 ## Campaign slides and the law
 
 Texas Election Code section 255.001 says political advertising must say that it
-is political advertising and who paid for it, on the face of the ad. The
-`campaign` playlist is marked political in `config.json`. Until you set the
-"paid for by" line under Settings, nothing in that folder will play, and once
-you set it the strip is burned into the bottom of every file in the folder,
-including uploads. It cannot be turned off per file. The wording is yours to
-get right; have the campaign's lawyer confirm it.
+is political advertising and who paid for it, on the face of the ad. Slides for
+the `campaign` folder get a footer on every frame, "Pol. adv. paid for by ___",
+added by the studio when it renders them. Fill in the real name: yours if this is
+your own display as a supporter, or the committee's if the campaign is behind
+it. Use only the campaign's own logo and published wording, and confirm logo use
+with them. Have the wording checked by someone who knows the rules.
 
-Two more things to keep in mind, which are not the software's job: Dallas
-regulates illuminated and animated signs, and a bright projected image facing
-the street may count. Keep it on your own property, do not point it into
-neighbours' windows, use the quiet-hours dim late in the evening, and check with
-Dallas Development Services before a campaign runs on it.
+Dallas regulates illuminated and animated signs, and a bright projected image
+facing the street may count. Keep it on your own property, do not point it into
+neighbours' windows or the road, keep brightness and motion modest, and use the
+quiet-hours dim late in the evening. That is guidance, not legal advice.
 
 ## Alerts
 
 Install the free ntfy app on your phone, pick a topic name nobody would guess,
 and enter `https://ntfy.sh/that-topic` under Settings. You will get a message
-when the show stops unexpectedly, the player keeps crashing, the projector
-reports a fault or will not turn on for the schedule, the Pi runs hot, or the
-disk is nearly full. At most one message an hour per kind of problem.
+when the show stops unexpectedly, the player keeps crashing, the Pi runs hot, or
+the disk is nearly full. At most one message an hour per kind of problem.
 
 ## If something goes wrong
 
 The yellow "Needs attention" box at the top of the phone page lists problems in
-plain words. Under Settings there is "Restart the player" and "Show the log",
-which includes recent conversions.
+plain words. Under Settings there is "Restart the player" and "Show the log".
 
-If the page itself will not open:
+If the page itself will not open, on the Pi:
 
 ```bash
 sudo systemctl status balcony-projector
@@ -163,37 +165,37 @@ journalctl -u balcony-projector -f
 Things that only show up on the real hardware, and where to change them:
 
 - **No picture at all.** `mpv_video_args` in `config.json`. The defaults are
-  `--vo=gpu --gpu-context=drm --hwdec=auto-safe`. Try `--drm-connector=HDMI-A-1`
-  if the Pi picks the wrong HDMI port, or drop `--hwdec` if video stutters.
+  `--vo=gpu --gpu-context=drm --hwdec=auto-safe`. First try
+  `["--vo=drm", "--hwdec=auto-safe"]`. If the Pi picks the wrong HDMI port, add
+  `--drm-connector=HDMI-A-1`. Drop `--hwdec=auto-safe` if video stutters.
 - **No sound.** Pick the HDMI output under Settings, or set `audio_device` in
-  `config.json` (run `mpv --audio-device=help` to see the names).
-- **Wrong resolution.** The projector is 1280x800. mpv scales to whatever the
-  screen reports; if it looks wrong, force the mode with `--drm-mode=1280x800`
-  in `mpv_video_args`.
-- **Conversions are slow.** The Pi's hardware encoder (`h264_v4l2m2m`) is used
-  when ffmpeg offers it; otherwise software encoding, which is several times
-  slower than real time. Settings shows which one is in use. Uploads of big
-  movies are better copied in already as H.264 MP4, which is left untouched.
+  `config.json` (run `mpv --audio-device=help` on the Pi to see the names).
+- **Wrong size or edges cut off.** The installer sets 1280x800 at boot. Check
+  `cat /boot/firmware/cmdline.txt` contains `video=HDMI-A-1:1280x800@60`, and
+  that the projector's own aspect setting is "native" or "16:10".
+- **A file will not play.** It is not in the native format. Prepare it on the
+  laptop and send it again.
 
 ## Files
 
-- `app.py` runs everything: the player, the projector control, the schedule,
-  alerts and the phone page. `python3 app.py` starts it by hand.
-- `library.py` looks after the media folders and the ffmpeg conversions.
+- `app.py` runs everything on the Pi: the player, the optional schedule and
+  projector control, alerts and the phone page. `python3 app.py` starts it by hand.
+- `library.py` looks after the media folders. It also holds an ffmpeg conversion
+  pipeline that is off by default (`processing.enabled` in `config.json`),
+  because conversion belongs on the laptop.
 - `solar.py` works out sunrise and sunset.
 - `templates/index.html` is the phone page.
 - `config.json` holds the settings. Edit it and restart the service, or use the
-  phone page.
-- `state.json` remembers what was playing, so it resumes after a power cut.
-- Each media folder gets a `playlist.json` with the order and settings of its
-  files, plus hidden `.originals`, `.thumbs`, `.show` and `.work` folders.
-- `tests/smoke_test.py` runs the whole thing against real mpv and ffmpeg, a
-  fake projector and a fake ntfy server, and checks every button.
-  `tests/test_scheduler.py` checks the schedule and sunset maths.
+  phone page. `state.json` remembers what was playing.
+- `tools/studio/` is where the laptop-side tools will live (prepare, send, slide
+  builder, 3D renders).
+- `tests/smoke_test.py` runs the whole Pi side against real mpv and ffmpeg, a
+  fake projector and a fake ntfy server. `tests/test_scheduler.py` checks the
+  schedule and sunset maths.
 
 ## Rules for what goes on the screen
 
-The street can see it, including children and drivers. No text overlays except
-the legally required one, no sudden flashes, slow transitions. The player never
+The street can see it, including children and drivers. No text except the
+legally required footer, no sudden flashes, slow transitions. The player never
 draws menus, error messages or progress bars on the screen; all of that goes to
 the phone.

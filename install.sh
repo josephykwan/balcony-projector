@@ -3,13 +3,17 @@
 #
 # Run it from the folder that holds app.py, on the Pi:
 #
-#   sudo ./install.sh [--quiet-boot] [--projector-link] [--timezone America/Chicago]
+#   sudo ./install.sh [--quiet-boot] [--share] [--projector-link] [--timezone America/Chicago]
 #
 #   --quiet-boot      Hide the boot text, login prompt and rainbow splash so the
 #                     street only ever sees black or video. Backs up cmdline.txt.
-#   --projector-link  Give the Ethernet port the fixed address 192.168.50.1 for a
-#                     direct cable to the projector (which is set to 192.168.50.2).
+#   --share           Share ~/media on the Wi-Fi (Samba) so it shows up as a
+#                     network drive on a Mac or Windows laptop.
+#   --projector-link  Only for projectors with a LAN port: give the Ethernet port
+#                     the fixed address 192.168.50.1 for a direct cable.
 #   --timezone ZONE   Set the Pi's clock zone, so the evening schedule is right.
+#
+# Always sets the HDMI output to the projector's native 1280x800.
 #
 # Safe to run again; it only adds what is missing.
 
@@ -25,15 +29,17 @@ RUN_USER="${SUDO_USER:-pi}"
 RUN_HOME="$(getent passwd "$RUN_USER" | cut -d: -f6)"
 SERVICE=balcony-projector
 QUIET_BOOT=0
+SHARE=0
 PROJECTOR_LINK=0
 TIMEZONE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --quiet-boot) QUIET_BOOT=1 ;;
+    --share) SHARE=1 ;;
     --projector-link) PROJECTOR_LINK=1 ;;
     --timezone) TIMEZONE="${2:-}"; shift ;;
-    -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
   shift
@@ -44,9 +50,9 @@ if [[ -z "$RUN_HOME" || ! -d "$RUN_HOME" ]]; then
   exit 1
 fi
 
-echo "==> Installing mpv, Flask and ffmpeg"
+echo "==> Installing mpv and Flask"
 apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-flask mpv ffmpeg
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-flask mpv
 
 echo "==> Letting $RUN_USER use the display and sound"
 for grp in video render audio input; do
@@ -77,20 +83,61 @@ if [[ $PROJECTOR_LINK -eq 1 ]]; then
   fi
 fi
 
+CMDLINE=/boot/firmware/cmdline.txt
+[[ -f $CMDLINE ]] || CMDLINE=/boot/cmdline.txt
+CONFIG=/boot/firmware/config.txt
+[[ -f $CONFIG ]] || CONFIG=/boot/config.txt
+
+add_cmdline_opts() {
+  # cmdline.txt is a single line; add each option once
+  [[ -f $CMDLINE ]] || return 0
+  [[ -f $CMDLINE.balcony-backup ]] || cp "$CMDLINE" "$CMDLINE.balcony-backup"
+  local line
+  line="$(tr -d '\n' < "$CMDLINE")"
+  for opt in "$@"; do
+    [[ " $line " == *" $opt "* ]] || line="$line $opt"
+  done
+  printf '%s\n' "$line" > "$CMDLINE"
+}
+
+echo "==> Setting the HDMI output to the projector's native 1280x800"
+if [[ -f $CMDLINE ]] && grep -q "video=HDMI-A-1:" "$CMDLINE"; then
+  echo "    (a video= setting is already there, leaving it)"
+else
+  add_cmdline_opts "video=HDMI-A-1:1280x800@60"
+fi
+
+if [[ $SHARE -eq 1 ]]; then
+  echo "==> Sharing $RUN_HOME/media on the network"
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq samba
+  if ! grep -q "balcony-projector share" /etc/samba/smb.conf; then
+    cat >> /etc/samba/smb.conf <<EOF
+
+# balcony-projector share (start)
+[media]
+   comment = Balcony projector videos
+   path = $RUN_HOME/media
+   browseable = yes
+   writable = yes
+   guest ok = yes
+   force user = $RUN_USER
+   create mask = 0664
+   directory mask = 0775
+# balcony-projector share (end)
+EOF
+  fi
+  sed -i 's/^\(\s*\)map to guest = .*/\1map to guest = Bad User/' /etc/samba/smb.conf
+  grep -q "map to guest" /etc/samba/smb.conf || sed -i '/^\[global\]/a\   map to guest = Bad User' /etc/samba/smb.conf
+  systemctl enable smbd >/dev/null 2>&1 || true
+  systemctl restart smbd
+fi
+
 if [[ $QUIET_BOOT -eq 1 ]]; then
   echo "==> Hiding boot text and the login prompt on the projector"
-  CMDLINE=/boot/firmware/cmdline.txt
-  [[ -f $CMDLINE ]] || CMDLINE=/boot/cmdline.txt
-  CONFIG=/boot/firmware/config.txt
-  [[ -f $CONFIG ]] || CONFIG=/boot/config.txt
   if [[ -f $CMDLINE ]]; then
-    [[ -f $CMDLINE.balcony-backup ]] || cp "$CMDLINE" "$CMDLINE.balcony-backup"
     line="$(tr -d '\n' < "$CMDLINE")"
-    line="${line//console=tty1/console=tty3}"
-    for opt in quiet loglevel=0 logo.nologo vt.global_cursor_default=0 consoleblank=0 plymouth.ignore-serial-consoles; do
-      [[ " $line " == *" $opt "* ]] || line="$line $opt"
-    done
-    printf '%s\n' "$line" > "$CMDLINE"
+    printf '%s\n' "${line//console=tty1/console=tty3}" > "$CMDLINE"
+    add_cmdline_opts quiet loglevel=0 logo.nologo vt.global_cursor_default=0 consoleblank=0 plymouth.ignore-serial-consoles
   fi
   if [[ -f $CONFIG ]]; then
     [[ -f $CONFIG.balcony-backup ]] || cp "$CONFIG" "$CONFIG.balcony-backup"
@@ -132,7 +179,8 @@ PORT="$(python3 -c "import json;print(json.load(open('$APP_DIR/config.json')).ge
 echo
 echo "Done. On your phone, open:  http://$(hostname).local:$PORT/"
 echo "Videos go in:  $RUN_HOME/media/halloween, campaign, movies"
-echo "Logs:          journalctl -u $SERVICE -f"
-if [[ $QUIET_BOOT -eq 1 ]]; then
-  echo "Reboot once for the quiet boot to take effect:  sudo reboot"
+if [[ $SHARE -eq 1 ]]; then
+  echo "Network drive: smb://$(hostname).local/media  (Mac: Finder > Go > Connect to Server, connect as Guest)"
 fi
+echo "Logs:          journalctl -u $SERVICE -f"
+echo "Reboot once so the screen resolution (and quiet boot) take effect:  sudo reboot"
