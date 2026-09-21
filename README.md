@@ -90,19 +90,38 @@ alerts, a PIN, and, for a projector with a LAN port, PJLink control.
 **PIN.** Anyone on your Wi-Fi can open the page. Set a 4 to 8 digit PIN in
 Settings and the page asks for it once per phone.
 
-## Adding videos
+## Making and sending content: the studio
 
-Every file on the Pi must already be in its native format: **H.264 MP4,
-1280x800, 30 frames a second, yuv420p, first and last frames identical** so it
-loops without a jump. The laptop studio's `prepare` step makes that from any
-video or picture (coming in the next phase; until then, export from your editor
-with those settings). The Pi plays files exactly as they arrive and never
-converts them.
+Open **`http://balcony.local:8080/studio/`** in Chrome, Edge or Safari on your
+laptop. Nothing to install; the page is served by the Pi and all the work
+happens in your browser.
 
-Three ways to get a prepared file onto the Pi:
+**Make a show.** Pick a template (Campaign, Halloween, Holiday), type a few
+lines, watch the preview play, press **Send to balcony**. The browser renders
+the show as a 1280x800 MP4 and uploads it; the Pi starts playing it straight
+away. Campaign shows require the "Paid for by" line and carry it on every
+frame. Halloween has a built-in animated pumpkin; drop your own artwork PNG in
+any template to use that instead, or a logo for the campaign wordmark.
 
-1. **The phone page's Upload button.** It works just as well from a laptop
-   browser: open `http://balcony.local:8080/` on the laptop, Manage videos, Upload.
+**Send a video** made anywhere else: an AtmosFX clip, something exported from
+Keynote or Canva, a phone video. Drop it in, choose the playlist, press Send.
+It is converted on the laptop into exactly what the Pi plays (letterboxed on
+black, near-black made pure black, over-bright frames toned down, the end
+blended into the start so it loops without a jump) and uploaded.
+
+If you would rather make content in a full editor, **Keynote** on a Mac is a
+good fit: black slide background, big white text with its built-in animations,
+then File, Export To, Movie, custom size 1280x800. Canva and CapCut work the
+same way. Whatever you use, send the result through the studio's "Send a
+video" tab so it arrives in the right format.
+
+## Other ways to add videos
+
+Every file on the Pi must be **H.264 MP4, 1280x800, 30 frames a second**, and
+should start and end on the same frame so it loops cleanly. The studio makes
+that for you; if you bypass it:
+
+1. **The phone page's Upload button** also works from a laptop browser.
 2. **The network drive**, if you installed with `--share`. On a Mac: Finder, Go,
    Connect to Server, `smb://balcony.local/media`, connect as Guest. On Windows:
    `\\balcony.local\media`. Drop files into the `halloween`, `campaign` or
@@ -164,10 +183,10 @@ journalctl -u balcony-projector -f
 
 Things that only show up on the real hardware, and where to change them:
 
-- **No picture at all.** `mpv_video_args` in `config.json`. The defaults are
-  `--vo=gpu --gpu-context=drm --hwdec=auto-safe`. First try
-  `["--vo=drm", "--hwdec=auto-safe"]`. If the Pi picks the wrong HDMI port, add
-  `--drm-connector=HDMI-A-1`. Drop `--hwdec=auto-safe` if video stutters.
+- **No picture at all.** The Pi keeps the HDMI output on even with the projector
+  off, and picks the graphics device with the HDMI ports by itself. If the
+  projector is on the second micro-HDMI port, add `--drm-connector=HDMI-A-2` to
+  `mpv_video_args` in `config.json`. If video stutters, remove `--hwdec=auto-safe`.
 - **No sound.** Pick the HDMI output under Settings, or set `audio_device` in
   `config.json` (run `mpv --audio-device=help` on the Pi to see the names).
 - **Wrong size or edges cut off.** The installer sets 1280x800 at boot. Check
@@ -187,8 +206,8 @@ Things that only show up on the real hardware, and where to change them:
 - `templates/index.html` is the phone page.
 - `config.json` holds the settings. Edit it and restart the service, or use the
   phone page. `state.json` remembers what was playing.
-- `tools/studio/` is where the laptop-side tools will live (prepare, send, slide
-  builder, 3D renders).
+- `tools/studio/` is the studio: one page (`slides/index.html`), two bundled
+  fonts, and the small MP4 writer it uses. The Pi serves it at `/studio/`.
 - `tests/smoke_test.py` runs the whole Pi side against real mpv and ffmpeg, a
   fake projector and a fake ntfy server. `tests/test_scheduler.py` checks the
   schedule and sunset maths.

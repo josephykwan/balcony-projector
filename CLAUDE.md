@@ -220,14 +220,21 @@ Wi-Fi, time zone America/Chicago, SSH on), copying the project, running
 `install.sh --quiet-boot --share`, and checking `journalctl -u balcony-projector -f`
 after boot. Apply the Pi changes in section 4. Get AtmosFX Hollusion files looping
 smoothly and switching from the phone. Fix real-hardware issues (video output, audio
-device, resolution). **Status 2026-09-21: section 4 code changes done; the hands-on
-part is in progress with the user.**
+device, resolution). **Status 2026-09-21: done. The Pi is installed, reachable at
+balcony.local, and loops a test clip on the forced-on HDMI output (no projector
+attached yet). Real-hardware findings: the Pi 4 has two /dev/dri cards, mpv needs
+`--drm-device`/`--drm-connector` (now auto-detected), and the kernel needs
+`video=HDMI-A-1:1280x800@60D` so output continues with the projector off.**
 
-Phase 2 — Studio prepare + send (5a). So every file reaching the Pi is safe.
+Phase 2 — Studio prepare + send (5a). **Done, in the browser rather than Python:**
+the "Send a video" tab of `tools/studio/slides/index.html` converts any video to the
+native format (WebCodecs H.264 + mp4-muxer) and uploads it; the Pi serves the studio
+at `/studio/` and accepts uploads with `replace=1&play=1`.
 
-Phase 3 — Slide builder (5b) with the seed campaign show. Then calibration, fake
-frame, and `text_emerge` from the 3D pipeline (5c), since campaign content is next in
-line.
+Phase 3 — Slide builder (5b) with the seed campaign show. **Built as a template form**
+(Campaign, Halloween, Holiday) with the six canvas effects, footer, checks, animated
+pumpkin hero and artwork drop; renders and sends in one click. Still to do from 5c:
+calibration, fake frame, `text_emerge` (Blender).
 
 Phase 4 — Halloween 3D templates: `snow_depth`, `ghost_float`, `spider_lunge`. Then
 the AI clip pipeline (5d).

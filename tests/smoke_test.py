@@ -470,6 +470,10 @@ def main():
         projector.erst = "002000"
         s = api.wait(lambda s: s["projector"]["errors"], 45, "projector error flags")
         check("projector fault shows as a plain problem", any("temperature" in p for p in s["problems"]), s["problems"])
+        for _ in range(20):      # the alert goes out on a background thread
+            if any("projector fault" in t.lower() for t, _ in FakeNtfy.received):
+                break
+            time.sleep(0.25)
         check("projector fault sent an alert", any("projector fault" in t.lower() for t, _ in FakeNtfy.received), FakeNtfy.received)
         projector.erst = "000000"
         st, body = api.call("/api/projector", {"power": "sideways"})
