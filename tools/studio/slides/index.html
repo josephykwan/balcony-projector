@@ -8,11 +8,11 @@
   // The page works from a local file (../vendor, ../fonts) or served by the Pi at /studio/ (vendor/, fonts/).
   window.STUDIO_BASE = location.pathname.indexOf("/studio/") === 0 ? "/studio/" : "../";
   document.write('<script src="' + window.STUDIO_BASE + 'vendor/mp4-muxer.js"><\/script>');
+  document.write('<style>@font-face { font-family: "Anton"; src: url("' + window.STUDIO_BASE + 'fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }' +
+    '@font-face { font-family: "Inter"; src: url("' + window.STUDIO_BASE + 'fonts/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }</style>');
 </script>
 <style>
-  /* font paths are fixed up in the script below when served from the Pi */
-  @font-face { font-family: "Anton"; src: url("../fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
-  @font-face { font-family: "Inter"; src: url("../fonts/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
+  /* the @font-face rules are written by the script in <head>, with the right path */
   :root { --bg:#0f1115; --card:#181b22; --card-2:#20242d; --line:#2b303b; --text:#e8e9ee; --muted:#9aa0ad; --accent:#f2a33a; --accent-text:#1a1206; --warn:#f5d08a; --warn-bg:#3b2d14; --ok:#9be39b; }
   * { box-sizing: border-box; }
   html, body { margin:0; background:var(--bg); color:var(--text); font:16px/1.45 "Inter", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -229,13 +229,7 @@
     pi: location.protocol.indexOf("http") === 0 ? location.origin : "http://balcony.local:8080", pin: "",
     busy: false,
   };
-  if (location.protocol.indexOf("http") === 0) {
-    // served by the Pi: point the fonts at /studio/fonts/
-    const fixed = document.createElement("style");
-    fixed.textContent = '@font-face { font-family: "Anton"; src: url("' + window.STUDIO_BASE + 'fonts/Anton-Regular.ttf") format("truetype"); }' +
-      '@font-face { font-family: "Inter"; src: url("' + window.STUDIO_BASE + 'fonts/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; }';
-    document.head.appendChild(fixed);
-  }
+
   // remember the words between visits
   try {
     const saved = JSON.parse(localStorage.getItem("balcony-studio") || "{}");
@@ -565,8 +559,9 @@
   }
 
   // ---- status line, in plain words -----------------------------------------------
+  let holdStatusUntil = 0;
   function updateStatus() {
-    if (state.busy) return;
+    if (state.busy || performance.now() < holdStatusUntil) return;
     const beats = activeBeats(), tpl = TEMPLATES[state.template], st = $("status"), send = $("btn-send");
     let problem = "";
     if (!beats.length) problem = "Type at least one line above.";
@@ -727,6 +722,7 @@
   }
 
   async function renderShow(onProgress) {
+    try { await Promise.all([document.fonts.load("40px Anton"), document.fonts.load("700 40px Inter")]); artCache.clear(); } catch (e) {}
     const beats = activeBeats();
     const total = showTotal(beats), frames = Math.round(total * FPS);
     return encodeFrames(frames, (i) => { drawShowFrame(rctx, i / FPS, beats); }, onProgress);
@@ -773,9 +769,11 @@
       const data = await sendToPi(blob, name, state.template, (f) => setProgress("progress", 0.85 + 0.15 * f));
       setProgress("progress", 1);
       say("status", data.playing ? "Sent. The Pi is playing it now." : "Sent to the Pi's " + TEMPLATES[state.template].label + " folder.", "ok");
+      holdStatusUntil = performance.now() + 12000;
       console.log("balcony-studio sent", JSON.stringify(data));
     } catch (e) {
       say("status", e.message, "warn");
+      holdStatusUntil = performance.now() + 20000;
       console.log("balcony-studio failed", e.message);
       note("send failed: " + e.message);
     } finally {
@@ -889,7 +887,7 @@
   const tm = /template=(\w+)/.exec(hash); if (tm && TEMPLATES[tm[1]]) state.template = tm[1];
   const pm = /payer=([^,&]+)/.exec(hash); if (pm) { state.payer = decodeURIComponent(pm[1]); $("payer").value = state.payer; $("payer").classList.remove("required-missing"); }
   const pim = /pi=([^,&]+)/.exec(hash); if (pim) { state.pi = decodeURIComponent(pim[1]); $("g-pi").value = state.pi; }
-  document.fonts.ready.then(() => { artCache.clear(); updateStatus(); });
+  Promise.all([document.fonts.load("40px Anton"), document.fonts.load("700 40px Inter")]).catch(() => {}).then(() => { artCache.clear(); updateStatus(); });
   if (!window.isSecureContext && secureAddress()) {
     const note = document.createElement("div"); note.className = "status warn"; note.style.margin = "0 20px";
     note.innerHTML = 'To send video, open the secure copy of this page: <a href="' + secureAddress() + '" style="color:inherit">' + secureAddress() + '</a>. Your browser will warn about the Pi\'s home-made certificate once; choose Advanced, then proceed.';
