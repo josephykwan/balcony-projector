@@ -5,3 +5,4 @@ __pycache__/
 *.part
 tests/.tmp/
 .claude/
+tls/

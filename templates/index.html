@@ -183,7 +183,7 @@
 
   <details class="card" id="files-card">
     <summary>Manage videos</summary>
-    <p class="hint">Files must already be in the Pi's format (H.264 MP4, 1280x800, 30 fps); the laptop studio's "prepare" does that. You can also drop files straight into the media folder on the Pi: <span id="media-dir"></span></p>
+    <p class="hint">To make a show or convert a video, open the studio on a laptop: <a id="studio-link" href="#" style="color:inherit">https://balcony.local:8443/studio/</a> (accept the certificate warning once). You can also drop ready files straight into the media folder on the Pi: <span id="media-dir"></span></p>
     <label class="field">Playlist <select id="files-playlist"></select></label>
     <label class="field">Upload a video or picture
       <input type="file" id="file-input" class="up" accept="video/*,image/*">
@@ -966,6 +966,7 @@
   const wantedIds = (location.hash || "").slice(1).split(",").filter(Boolean);
   wantedIds.forEach((id) => { const el = document.getElementById(id); if (el && el.tagName === "DETAILS") el.open = true; });
   if (wantedIds.length === 1) { const el = document.getElementById(wantedIds[0]); if (el) setTimeout(() => el.scrollIntoView(), 400); }
+  $("studio-link").href = "https://" + location.hostname + ":8443/studio/"; $("studio-link").textContent = $("studio-link").href;
   refresh(); loadMedia(); loadSettings();
   setInterval(() => { if (!document.hidden) refresh(); }, 3000);
   setInterval(() => { if (!document.hidden) loadMedia(); }, 20000);

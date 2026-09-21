@@ -86,6 +86,9 @@ DEFAULT_CONFIG = {
         "lamp_warn_hours": 3500,
     },
     "alerts": {"enabled": False, "ntfy_url": ""},
+    # HTTPS copy of the same site on a second port. Browsers only allow the
+    # studio's video encoder on a secure page, so the studio is opened there.
+    "tls": {"enabled": True, "port": 8443},
 }
 
 log = logging.getLogger("balcony")
@@ -1843,7 +1846,47 @@ def main(argv=None):
 
     port = args.port or int(cfg.data.get("port", 8080))
     log.info("Phone remote at http://%s:%d/", socket.gethostname(), port)
+    tls = cfg.data.get("tls", {})
+    if tls.get("enabled", True):
+        cert = ensure_certificate(os.path.join(BASE_DIR, "tls"))
+        if cert:
+            tls_port = int(tls.get("port", 8443))
+            log.info("Studio at https://%s:%d/studio/", socket.gethostname(), tls_port)
+            threading.Thread(target=serve_https, args=(app, args.host, tls_port, cert), daemon=True).start()
     app.run(host=args.host, port=port, threaded=True, use_reloader=False)
+
+
+def ensure_certificate(folder):
+    """A self-signed certificate for the HTTPS port, made once with openssl.
+    Browsers warn about it the first time; that is expected."""
+    crt, key = os.path.join(folder, "balcony.crt"), os.path.join(folder, "balcony.key")
+    if os.path.isfile(crt) and os.path.isfile(key):
+        return crt, key
+    if not shutil.which("openssl"):
+        log.warning("openssl not found; no HTTPS port (the studio needs to be opened as a file instead)")
+        return None
+    os.makedirs(folder, exist_ok=True)
+    host = socket.gethostname().split(".")[0] or "balcony"
+    cmd = ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "3650",
+           "-keyout", key, "-out", crt, "-subj", "/CN=%s.local" % host,
+           "-addext", "subjectAltName=DNS:%s.local,DNS:%s" % (host, host)]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, timeout=120)
+        os.chmod(key, 0o600)
+        log.info("Made a self-signed certificate for %s.local", host)
+        return crt, key
+    except (OSError, subprocess.SubprocessError) as exc:
+        log.warning("Could not make a certificate: %s", exc)
+        return None
+
+
+def serve_https(app, host, port, cert):
+    from werkzeug.serving import make_server
+    try:
+        server = make_server(host, port, app, threaded=True, ssl_context=cert)
+        server.serve_forever()
+    except Exception as exc:  # the HTTP port keeps working regardless
+        log.error("HTTPS port %d failed: %s", port, exc)
 
 
 if __name__ == "__main__":

@@ -52,7 +52,7 @@ fi
 
 echo "==> Installing mpv and Flask"
 apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-flask mpv
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-flask mpv openssl
 
 echo "==> Letting $RUN_USER use the display and sound"
 for grp in video render audio input; do
@@ -178,6 +178,7 @@ systemctl restart "$SERVICE.service"
 PORT="$(python3 -c "import json;print(json.load(open('$APP_DIR/config.json')).get('port',8080))" 2>/dev/null || echo 8080)"
 echo
 echo "Done. On your phone, open:  http://$(hostname).local:$PORT/"
+echo "Studio (laptop):  https://$(hostname).local:8443/studio/   (accept the certificate warning once)"
 echo "Videos go in:  $RUN_HOME/media/halloween, campaign, movies"
 if [[ $SHARE -eq 1 ]]; then
   echo "Network drive: smb://$(hostname).local/media  (Mac: Finder > Go > Connect to Server, connect as Guest)"

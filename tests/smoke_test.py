@@ -202,6 +202,7 @@ def main():
                       "password": "secret", "input": "31", "warmup_seconds": 5},
         "alerts": {"enabled": True, "ntfy_url": ntfy_url},
         "seasons": [],
+        "tls": {"enabled": False},
     }
     config_path = os.path.join(work, "config.json")
     state_path = os.path.join(work, "state.json")

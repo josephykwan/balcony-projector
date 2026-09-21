@@ -686,9 +686,17 @@
   $("g-pin").onchange = () => { state.pin = $("g-pin").value.trim(); persist(); };
 
   // ---- MP4 encoding in the browser ---------------------------------------------------
+  function secureAddress() {
+    // browsers only allow the video encoder on https (or a local file); the Pi serves one on port 8443
+    if (location.protocol === "http:") return "https://" + location.hostname + ":8443/studio/";
+    return null;
+  }
   async function pickCodec() {
-    console.log("balcony-studio codec check, VideoEncoder:", "VideoEncoder" in window, "Mp4Muxer:", typeof Mp4Muxer);
-    if (!("VideoEncoder" in window)) throw new Error("This browser can't make videos. Use Chrome, Edge or Safari 16.4 or newer.");
+    console.log("balcony-studio codec check, VideoEncoder:", "VideoEncoder" in window, "secure:", window.isSecureContext, "Mp4Muxer:", typeof Mp4Muxer);
+    if (!("VideoEncoder" in window)) {
+      if (!window.isSecureContext && secureAddress()) throw new Error("Browsers only make video on a secure page. Open the studio at " + secureAddress() + " instead (accept the one-time warning about the Pi's certificate).");
+      throw new Error("This browser can't make videos. Use Chrome, Edge or Safari 16.4 or newer.");
+    }
     for (const codec of ["avc1.640028", "avc1.4d0028", "avc1.42001f"]) {
       const cfg = { codec, width: W, height: H, bitrate: 8000000, framerate: FPS, avc: { format: "avc" }, latencyMode: "quality" };
       const s = await VideoEncoder.isConfigSupported(cfg);
@@ -874,6 +882,11 @@
   const pm = /payer=([^,&]+)/.exec(hash); if (pm) { state.payer = decodeURIComponent(pm[1]); $("payer").value = state.payer; $("payer").classList.remove("required-missing"); }
   const pim = /pi=([^,&]+)/.exec(hash); if (pim) { state.pi = decodeURIComponent(pim[1]); $("g-pi").value = state.pi; }
   document.fonts.ready.then(() => { artCache.clear(); updateStatus(); });
+  if (!window.isSecureContext && secureAddress()) {
+    const note = document.createElement("div"); note.className = "status warn"; note.style.margin = "0 20px";
+    note.innerHTML = 'To send video, open the secure copy of this page: <a href="' + secureAddress() + '" style="color:inherit">' + secureAddress() + '</a>. Your browser will warn about the Pi\'s home-made certificate once; choose Advanced, then proceed.';
+    document.querySelector("main").prepend(note);
+  }
   renderFields();
   const bm = /beat=(\d+)/.exec(hash); const tsk = /t=([\d.]+)/.exec(hash);
   if (bm) jumpTo(Number(bm[1]) - 1);
