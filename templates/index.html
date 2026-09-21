@@ -53,6 +53,13 @@
   .thumb { width: 72px; height: 45px; border-radius: 6px; background: #000 center/cover no-repeat; flex: 0 0 auto;
     border: 1px solid var(--line); }
   .thumb.mirror { transform: scaleX(-1); }
+  .preview-box { aspect-ratio: 16/10; background:#000; border-radius:12px; overflow:hidden; margin-bottom:10px; border:1px solid var(--line); }
+  .preview-box img { width:100%; height:100%; object-fit:contain; display:block; }
+  .preview-box.mirror img { transform: scaleX(-1); }
+  .item .chev { color: var(--muted); font-size: 18px; padding: 6px 4px; }
+  .sublist { display:grid; gap:6px; padding: 0 0 6px 18px; }
+  .sublist .item { min-height: 50px; padding: 8px 10px; }
+  .sublist .thumb { width: 60px; height: 38px; }
   .badge { display: inline-block; font-size: 12px; padding: 2px 7px; border-radius: 999px; background: #223522; color: #9be39b; margin-left: 6px; vertical-align: middle; }
   .badge.warn { background: #3b2d14; color: #f5d08a; }
   .badge.bad { background: #3a2222; color: #f2a0a0; }
@@ -113,6 +120,7 @@
 
   <section class="card">
     <div class="label">On the screen now</div>
+    <div class="preview-box" id="preview-box" hidden><img id="preview" alt="What is on the screen"></div>
     <p class="big" id="now-title">Dark</p>
     <div class="muted" id="now-sub">Nothing is playing.</div>
     <div class="progress" id="now-progress" hidden><div id="now-bar"></div></div>
@@ -193,23 +201,15 @@
     <label class="check"><input type="checkbox" id="mirror"> Show pictures as seen from the balcony (mirrored)</label>
     <div class="list" id="files-list" style="margin-top:14px"></div>
     <p class="hint" id="hologram-hint" hidden>Hologram mode: <b>invert</b> turns dark-on-white artwork into glowing text on black. <b>Knockout</b> makes white areas black and keeps other colours. Black disappears on the mesh, so figures look like they float.</p>
-  </details>
-
-  <details class="card" id="slide-card" hidden>
-    <summary>Make a slide</summary>
-    <p class="hint">A few big glowing words on black. Keep it to what a driver can read in three seconds.</p>
-    <label class="field">Words (one line per row, up to three)
-      <textarea id="slide-title" maxlength="120" placeholder="VOTE NOV 3"></textarea>
-    </label>
-    <label class="field">Smaller line underneath (optional) <input type="text" id="slide-sub" maxlength="60" placeholder="Early voting starts Oct 19"></label>
-    <div class="row">
-      <label class="field">Colour <input type="color" id="slide-color" value="#ffffff"></label>
-      <label class="field">Seconds on screen <input type="number" id="slide-dwell" min="4" max="120" value="12"></label>
-      <label class="field">Playlist <select id="slide-playlist"></select></label>
+    <div class="section">
+      <h3>Playlists</h3>
+      <div class="row">
+        <button class="small" id="btn-pl-new">New playlist</button>
+        <button class="small" id="btn-pl-rename">Rename this one</button>
+        <button class="small danger" id="btn-pl-delete">Delete this one</button>
+      </div>
+      <p class="hint">A playlist is just a folder of videos. "Loops" playlists play round and round; "plays once" playlists play one video and then go dark.</p>
     </div>
-    <canvas class="preview" id="slide-preview" width="1280" height="800"></canvas>
-    <div class="muted" id="slide-note" style="margin-top:8px"></div>
-    <div class="row"><button id="btn-slide" class="primary">Add this slide</button></div>
   </details>
 
   <details class="card" id="settings-card">
@@ -230,12 +230,6 @@
         </select></label>
       <label class="check"><input type="checkbox" id="set-proj-mute"> Blank the projector while the screen is dark (less light spill)</label>
       <label class="field">Remind me about the lamp after this many hours <input type="number" id="set-lamp-hours" min="100" step="100"></label>
-    </div>
-
-    <div class="section">
-      <h3>Campaign slides: the "paid for by" line</h3>
-      <p class="hint">Texas law says political advertising must say it is political advertising and who paid for it. This strip is burned into everything in the campaign playlist and can't be switched off per file. Check the exact wording with the campaign's lawyer.</p>
-      <div id="disclaimers"></div>
     </div>
 
     <div class="section">
@@ -425,8 +419,8 @@
     else { pill.textContent = "Playing"; pill.className = "pill on"; }
 
     if (playing) {
-      $("now-title").textContent = p.mode === "once" ? fileLabel(p.playlist, p.file) : labelFor(p.playlist);
-      let sub = p.mode === "once" ? "Plays once, then the screen goes dark." : fileLabel(p.playlist, p.file);
+      $("now-title").textContent = (p.mode === "once" || p.single) ? fileLabel(p.playlist, p.file) : labelFor(p.playlist);
+      let sub = p.mode === "once" ? "Plays once, then the screen goes dark." : p.single ? "Looping just this one, from " + labelFor(p.playlist) + "." : fileLabel(p.playlist, p.file);
       if (p.mode === "loop" && p.playlist_count > 1 && p.playlist_pos != null)
         sub += "  ·  " + (p.playlist_pos + 1) + " of " + p.playlist_count + (p.show ? ", seamless loop" : ", looping");
       if (p.duration && !p.show) sub += "  ·  " + mmss(p.position) + " / " + mmss(p.duration);
@@ -438,9 +432,15 @@
       $("now-sub").textContent = p.player_running ? "Nothing is playing. Pick a show below." : "";
       $("now-progress").hidden = true;
     }
+    // a fresh frame from the player, every few seconds
+    const pv = $("preview-box");
+    if (playing && !p.paused) {
+      pv.hidden = false; pv.classList.toggle("mirror", pref("mirror") === "1");
+      if (Date.now() - (pv.dataset.at || 0) > 3000) { pv.dataset.at = Date.now(); $("preview").src = "/api/preview.jpg?t=" + Date.now() + (pin() ? "&pin=" + encodeURIComponent(pin()) : ""); }
+    } else if (!playing) { pv.hidden = true; }
     $("btn-pause").textContent = p.paused ? "Resume" : "Pause";
     $("btn-pause").disabled = !playing;
-    $("btn-next").disabled = !playing || p.mode !== "loop" || p.playlist_count < 2;
+    $("btn-next").disabled = !playing || p.mode !== "loop" || p.single || p.playlist_count < 2;
     $("btn-stop").disabled = !playing;
     $("btn-shuffle").textContent = p.shuffle ? "Shuffle: on" : "Shuffle: off";
     $("dim-note").hidden = !(p.dim_level && p.dim_level < 100);
@@ -511,70 +511,73 @@
     return t;
   }
 
+  const expanded = new Set((pref("expanded") || "").split(",").filter(Boolean));
+  function playerNow() { return status && status.player; }
+
   async function loadMedia() {
     try { mediaInfo = await api("/api/media"); } catch (e) { return; }
     $("media-dir").textContent = mediaInfo.media_dir;
     const holder = $("playlists");
     holder.innerHTML = "";
     mediaInfo.playlists.forEach((pl) => {
-      if (pl.mode === "loop") {
-        const item = document.createElement("div");
-        item.className = "item playable"; item.dataset.playlist = pl.name;
-        const on = pl.files.filter((f) => f.enabled && f.status !== "waiting");
-        item.appendChild(thumbEl(pl.name, on.find((f) => f.thumb)));
-        const name = document.createElement("div"); name.className = "name";
-        const b = document.createElement("b"); b.textContent = pl.label;
-        if (pl.show && pl.show.ready) { const badge = document.createElement("span"); badge.className = "badge"; badge.textContent = "seamless"; b.appendChild(badge); }
-        const sub = document.createElement("span"); sub.className = "sub";
-        sub.textContent = on.length ? on.length + (on.length === 1 ? " file" : " files") + ", loops all evening"
-          : (pl.files.length ? "Nothing switched on" : pl.exists ? "Empty folder" : "No folder yet");
-        name.appendChild(b); name.appendChild(sub);
-        item.appendChild(name);
-        const go = document.createElement("span"); go.className = "go"; go.textContent = "▶"; item.appendChild(go);
-        item.onclick = () => act("/api/play", { playlist: pl.name });
-        holder.appendChild(item);
-      } else {
-        const head = document.createElement("div");
-        head.className = "muted"; head.style.marginTop = "8px";
-        head.textContent = pl.label + " — plays once, then dark";
-        holder.appendChild(head);
-        if (!pl.files.length) {
-          const empty = document.createElement("div"); empty.className = "muted";
-          empty.textContent = pl.exists ? "No movies in the folder yet." : "No movies folder yet.";
-          holder.appendChild(empty);
-        }
+      const on = pl.files.filter((f) => f.enabled && f.status !== "waiting");
+      const head = document.createElement("div");
+      head.className = "item playable"; head.dataset.playlist = pl.name;
+      head.appendChild(thumbEl(pl.name, on.find((f) => f.thumb) || pl.files[0]));
+      const name = document.createElement("div"); name.className = "name";
+      const b = document.createElement("b"); b.textContent = pl.label;
+      if (pl.show && pl.show.ready) { const badge = document.createElement("span"); badge.className = "badge"; badge.textContent = "seamless"; b.appendChild(badge); }
+      const sub = document.createElement("span"); sub.className = "sub";
+      const count = on.length + (on.length === 1 ? " video" : " videos");
+      sub.textContent = pl.mode === "once" ? (on.length ? count + ", each plays once" : "No movies yet")
+        : (on.length ? count + ", loops all evening. Tap ▶ to play all." : (pl.files.length ? "Nothing switched on" : pl.exists ? "Empty, add videos from the studio" : "No folder yet"));
+      name.appendChild(b); name.appendChild(sub); head.appendChild(name);
+      if (pl.mode === "loop" && on.length) {
+        const go = document.createElement("button"); go.className = "tiny"; go.style.fontSize = "18px"; go.style.color = "var(--accent)"; go.textContent = "▶"; go.title = "Play all";
+        go.onclick = (e) => { e.stopPropagation(); act("/api/play", { playlist: pl.name }); };
+        head.appendChild(go);
+      }
+      const chev = document.createElement("span"); chev.className = "chev"; chev.textContent = expanded.has(pl.name) ? "▾" : "▸"; head.appendChild(chev);
+      head.onclick = () => { if (expanded.has(pl.name)) expanded.delete(pl.name); else expanded.add(pl.name); pref("expanded", [...expanded].join(",")); loadMedia(); };
+      holder.appendChild(head);
+      if (expanded.has(pl.name)) {
+        const list = document.createElement("div"); list.className = "sublist";
+        if (!pl.files.length) { const e = document.createElement("div"); e.className = "muted"; e.textContent = "Nothing here yet. Send something from the studio."; list.appendChild(e); }
         pl.files.forEach((f) => {
           const item = document.createElement("div");
-          item.className = "item playable"; item.dataset.playlist = pl.name; item.dataset.file = f.name;
+          item.className = "item playable" + (f.enabled ? "" : " off"); item.dataset.playlist = pl.name; item.dataset.file = f.name;
           item.appendChild(thumbEl(pl.name, f));
-          const name = document.createElement("div"); name.className = "name";
-          const b = document.createElement("b"); b.textContent = f.label;
-          const sub = document.createElement("span"); sub.className = "sub";
-          sub.textContent = (f.duration ? mmss(f.duration) + " · " : "") + mb(f.bytes) + (f.status === "processing" ? " · converting" : "");
-          name.appendChild(b); name.appendChild(sub); item.appendChild(name);
-          const go = document.createElement("span"); go.className = "go"; go.textContent = "▶"; item.appendChild(go);
-          item.onclick = () => act("/api/play", { playlist: pl.name, file: f.name });
-          holder.appendChild(item);
+          const nm = document.createElement("div"); nm.className = "name";
+          const fb = document.createElement("b"); fb.textContent = f.label;
+          const fs = document.createElement("span"); fs.className = "sub";
+          fs.textContent = (f.duration ? mmss(f.duration) + " · " : "") + (pl.mode === "once" ? "tap to play once" : "tap to loop just this one");
+          nm.appendChild(fb); nm.appendChild(fs); item.appendChild(nm);
+          const go = document.createElement("span"); go.className = "go"; go.textContent = pl.mode === "once" ? "▶" : "↻"; item.appendChild(go);
+          item.onclick = (e) => { e.stopPropagation(); act("/api/play", { playlist: pl.name, file: f.name, loop: pl.mode !== "once" }); };
+          list.appendChild(item);
         });
+        holder.appendChild(list);
       }
     });
     fillPlaylistSelects();
     markPlaying();
     renderFiles();
-    renderSlidePreview();
   }
 
   function markPlaying() {
-    const p = status && status.player;
+    const p = playerNow();
     document.querySelectorAll("#playlists .item").forEach((el) => {
-      const on = p && p.mode !== "off" && el.dataset.playlist === p.playlist &&
-        (p.mode === "loop" ? !el.dataset.file : el.dataset.file === p.file);
-      el.classList.toggle("playing", !!on);
+      let on = false;
+      if (p && p.mode !== "off" && el.dataset.playlist === p.playlist) {
+        if (el.dataset.file) on = p.file === el.dataset.file && (p.mode === "once" || p.single);
+        else on = p.mode === "loop" && !p.single;
+      }
+      el.classList.toggle("playing", on);
     });
   }
 
   function fillPlaylistSelects() {
-    ["sched-playlist", "files-playlist", "slide-playlist"].forEach((id) => {
+    ["sched-playlist", "files-playlist"].forEach((id) => {
       const sel = $(id), keep = sel.value;
       sel.innerHTML = "";
       mediaInfo.playlists.forEach((pl) => {
@@ -662,7 +665,33 @@
   }
   $("files-playlist").onchange = renderFiles;
   $("mirror").checked = pref("mirror") === "1";
-  $("mirror").onchange = () => { pref("mirror", $("mirror").checked ? "1" : "0"); loadMedia(); };
+  $("mirror").onchange = () => { pref("mirror", $("mirror").checked ? "1" : "0"); loadMedia(); $("preview-box").classList.toggle("mirror", $("mirror").checked); };
+  $("preview").onerror = () => { $("preview-box").hidden = true; };
+
+  // playlists: create, rename, delete
+  $("btn-pl-new").onclick = async () => {
+    const label = prompt("Name for the new playlist:", "");
+    if (!label) return;
+    const once = confirm("Should it play one video at a time and then go dark (like Movies)?\n\nOK = plays once.  Cancel = loops all evening.");
+    const data = await act("/api/playlist", { action: "create", label: label, mode: once ? "once" : "loop" }, "Made \"" + label + "\".");
+    if (data) { await loadMedia(); $("files-playlist").value = data.name; renderFiles(); }
+  };
+  $("btn-pl-rename").onclick = async () => {
+    const pl = mediaInfo && mediaInfo.playlists.find((x) => x.name === $("files-playlist").value);
+    if (!pl) return;
+    const label = prompt("New name for \"" + pl.label + "\":", pl.label);
+    if (!label || label === pl.label) return;
+    await act("/api/playlist", { action: "rename", name: pl.name, label: label }, "Renamed.");
+    loadMedia(); loadSettings();
+  };
+  $("btn-pl-delete").onclick = async () => {
+    const pl = mediaInfo && mediaInfo.playlists.find((x) => x.name === $("files-playlist").value);
+    if (!pl) return;
+    const n = pl.files.length;
+    if (!confirm(n ? "Delete \"" + pl.label + "\" and the " + n + " video" + (n === 1 ? "" : "s") + " in it? This can't be undone." : "Delete the empty playlist \"" + pl.label + "\"?")) return;
+    await act("/api/playlist", { action: "delete", name: pl.name, with_files: true }, "Deleted \"" + pl.label + "\".");
+    loadMedia(); loadSettings();
+  };
 
   function uploadForm(form, onDone) {
     const xhr = new XMLHttpRequest();
@@ -692,94 +721,6 @@
       $("btn-upload").disabled = false;
       if (ok) { toast("Uploaded " + data.name + (data.processing ? ". Converting it now." : ".")); $("file-input").value = ""; loadMedia(); }
     });
-  };
-
-  // ---- slide builder ------------------------------------------------------
-  function fitFont(ctx, lines, maxWidth, start, min, weight) {
-    let size = start;
-    while (size > min) {
-      ctx.font = weight + " " + size + "px -apple-system, Helvetica, Arial, sans-serif";
-      if (lines.every((l) => ctx.measureText(l).width <= maxWidth)) break;
-      size -= 4;
-    }
-    return size;
-  }
-
-  function drawSlide(canvas, title, sub, color, disclaimer) {
-    const ctx = canvas.getContext("2d");
-    const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
-    const lines = title.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 3);
-    const safeBottom = H - 90 - 30;
-    const titleSize = lines.length ? fitFont(ctx, lines, W * 0.8, 200, 60, "bold") : 0;
-    const subSize = sub ? fitFont(ctx, [sub], W * 0.8, Math.max(48, Math.round(titleSize * 0.45)), 36, "600") : 0;
-    const total = lines.length * titleSize * 1.15 + (sub ? subSize * 1.6 : 0);
-    let y = Math.max(60 + titleSize, (safeBottom + 60) / 2 - total / 2 + titleSize);
-    ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-    ctx.shadowColor = color; ctx.shadowBlur = 40;
-    ctx.fillStyle = color;
-    lines.forEach((l) => {
-      ctx.font = "bold " + titleSize + "px -apple-system, Helvetica, Arial, sans-serif";
-      ctx.fillText(l, W / 2, y); ctx.fillText(l, W / 2, y);
-      y += titleSize * 1.15;
-    });
-    if (sub) {
-      y += subSize * 0.4;
-      ctx.font = "600 " + subSize + "px -apple-system, Helvetica, Arial, sans-serif";
-      ctx.shadowBlur = 20; ctx.fillStyle = "#ffffff";
-      ctx.fillText(sub, W / 2, y);
-    }
-    ctx.shadowBlur = 0;
-    if (disclaimer) drawDisclaimerOn(ctx, disclaimer, 0, H - 90, W, 90);
-  }
-
-  function drawDisclaimerOn(ctx, text, x, y, w, h) {
-    ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.shadowBlur = 0;
-    const size = fitFont(ctx, [text], w * 0.94, 40, 22, "600");
-    ctx.font = "600 " + size + "px -apple-system, Helvetica, Arial, sans-serif";
-    ctx.fillText(text, x + w / 2, y + h / 2 + 2);
-    ctx.restore();
-  }
-
-  function slideTargetDisclaimer() {
-    if (!settingsInfo) return "";
-    const pl = settingsInfo.playlists.find((p) => p.name === $("slide-playlist").value);
-    return pl && pl.political ? (pl.disclaimer || "") : "";
-  }
-
-  function renderSlidePreview() {
-    const title = $("slide-title").value || "VOTE NOV 3";
-    const pl = settingsInfo && settingsInfo.playlists.find((p) => p.name === $("slide-playlist").value);
-    const disc = slideTargetDisclaimer();
-    drawSlide($("slide-preview"), title, $("slide-sub").value, $("slide-color").value, disc);
-    const note = $("slide-note");
-    if (pl && pl.political) note.textContent = disc ? "The \"paid for by\" strip is added on the Pi to everything in " + pl.label + "."
-      : "Set the \"paid for by\" line in Settings first; campaign slides won't play without it.";
-    else note.textContent = "The words drift slowly so nothing sits still on the screen.";
-  }
-  ["slide-title", "slide-sub", "slide-color", "slide-playlist"].forEach((id) => { $(id).oninput = renderSlidePreview; $(id).onchange = renderSlidePreview; });
-
-  $("btn-slide").onclick = () => {
-    const title = $("slide-title").value.trim();
-    if (!title) { toast("Type the words first.", true); return; }
-    const canvas = document.createElement("canvas"); canvas.width = 1280; canvas.height = 800;
-    drawSlide(canvas, title, $("slide-sub").value.trim(), $("slide-color").value, "");
-    const stem = title.split("\n")[0].replace(/[^A-Za-z0-9 _-]+/g, " ").trim().slice(0, 40) || "slide";
-    canvas.toBlob((blob) => {
-      const form = new FormData();
-      form.append("playlist", $("slide-playlist").value);
-      form.append("dwell", $("slide-dwell").value || 12);
-      form.append("slide", "1");
-      form.append("file", blob, stem + ".png");
-      $("btn-slide").disabled = true;
-      uploadForm(form, (ok, data) => {
-        $("btn-slide").disabled = false;
-        if (ok) { toast("Added \"" + stem + "\" to " + labelFor(data.playlist) + ". Converting it now."); loadMedia(); }
-      });
-    }, "image/png");
   };
 
   // ---- controls -----------------------------------------------------------
@@ -887,7 +828,6 @@
     $("set-crossfade").value = pc.crossfade_seconds || 2;
     $("proc-info").textContent = !pc.enabled ? "Off: files play exactly as uploaded. Prepare them on the laptop first (see the README)."
       : settingsInfo.processing_available ? "On: ffmpeg is installed; encoding with " + settingsInfo.encoder + "." : "On, but ffmpeg is not installed on the Pi, so nothing is converted.";
-    $("slide-card").hidden = !settingsInfo.processing_on;
     $("hologram-hint").hidden = !settingsInfo.processing_on;
     $("set-resume").checked = !!settingsInfo.resume_on_boot;
     const dim = settingsInfo.dim || {};
@@ -906,35 +846,6 @@
       audio.appendChild(o);
     });
     audio.value = settingsInfo.audio_device;
-
-    // disclaimers, one per political playlist
-    const holder = $("disclaimers"); holder.innerHTML = "";
-    const political = settingsInfo.playlists.filter((p) => p.political);
-    if (!political.length) holder.innerHTML = '<div class="muted">No playlist is marked as political advertising.</div>';
-    political.forEach((pl) => {
-      const wrap = document.createElement("div");
-      const lbl = document.createElement("label"); lbl.className = "field"; lbl.textContent = pl.label + ": strip text";
-      const input = document.createElement("input"); input.type = "text"; input.maxLength = 200; input.value = pl.disclaimer || "";
-      input.placeholder = "Political advertising paid for by Friends of Jane Doe";
-      lbl.appendChild(input); wrap.appendChild(lbl);
-      const canvas = document.createElement("canvas"); canvas.className = "preview"; canvas.width = 1280; canvas.height = 90;
-      const draw = () => { const ctx = canvas.getContext("2d"); ctx.clearRect(0, 0, 1280, 90); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, 1280, 90); if (input.value.trim()) drawDisclaimerOn(ctx, input.value.trim(), 0, 0, 1280, 90); };
-      draw(); input.oninput = draw;
-      wrap.appendChild(canvas);
-      const row = document.createElement("div"); row.className = "row";
-      const save = document.createElement("button"); save.className = "small primary"; save.textContent = "Save the " + pl.label + " strip";
-      save.onclick = () => {
-        const text = input.value.trim();
-        if (!text) { toast("Type the line first. To stop treating " + pl.label + " as political advertising, edit config.json on the Pi.", true); return; }
-        canvas.toBlob((blob) => {
-          const form = new FormData(); form.append("playlist", pl.name); form.append("text", text); form.append("image", blob, pl.name + ".png");
-          act("/api/disclaimer", form, "Saved. Files in " + pl.label + " will be re-made with the strip.").then(() => { loadSettings(); loadMedia(); });
-        }, "image/png");
-      };
-      row.appendChild(save); wrap.appendChild(row);
-      holder.appendChild(wrap);
-    });
-    renderSlidePreview();
   }
 
   $("btn-save-settings").onclick = async () => {

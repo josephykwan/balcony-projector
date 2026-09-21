@@ -142,6 +142,7 @@
     <div class="preview-wrap" id="vprev-wrap" hidden><video id="vprev" muted playsinline loop controls></video></div>
     <div class="opts">
       <div class="field"><label for="vplaylist">Playlist</label><select id="vplaylist"><option value="halloween">Halloween</option><option value="campaign">Campaign</option><option value="movies">Movies</option></select></div>
+      <div class="hint">The list of playlists comes from the Pi; make new ones on the phone page under Manage videos.</div>
       <label class="check"><input type="checkbox" id="v-loop" checked> Blend the end into the start so it loops without a jump</label>
       <label class="check"><input type="checkbox" id="v-black" checked> Make near-black pure black (invisible on the mesh)</label>
       <label class="check"><input type="checkbox" id="v-dim" checked> Tone down frames that are too bright for the mesh</label>
@@ -878,6 +879,17 @@
     $("pane-video").hidden = tab !== "video";
     if (tab === "show") { clock = performance.now(); updateStatus(); } else { $("btn-send").disabled = !videoFile; }
   }
+  // the playlist list comes from the Pi when it can be reached
+  (async () => {
+    try {
+      const res = await fetch(state.pi + "/api/media", { headers: state.pin ? { "X-Pin": state.pin } : {} });
+      const data = await res.json();
+      if (!data.ok) return;
+      const sel = $("vplaylist"), keep = sel.value; sel.innerHTML = "";
+      data.playlists.forEach((pl) => { const o = document.createElement("option"); o.value = pl.name; o.textContent = pl.label + (pl.mode === "once" ? " (plays once)" : ""); sel.appendChild(o); });
+      if ([...sel.options].some((o) => o.value === keep)) sel.value = keep;
+    } catch (e) { /* offline: keep the defaults */ }
+  })();
   $("tab-show").onclick = () => setTab("show");
   $("tab-video").onclick = () => setTab("video");
   $("btn-send").onclick = () => { if (state.busy) return; if (state.tab === "show") sendShow(); else sendVideo(); };

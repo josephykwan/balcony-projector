@@ -403,6 +403,49 @@ class Library:
             "added": datetime.now().isoformat(timespec="seconds"),
         }
 
+    # ---- playlists themselves -----------------------------------------------
+
+    def create_playlist(self, label, mode="loop"):
+        label = re.sub(r"\s+", " ", label).strip()[:40]
+        if not label:
+            raise LibraryError("Give the playlist a name.")
+        name = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")[:32]
+        if not name:
+            raise LibraryError("Use some letters or numbers in the name.")
+        if self.spec(name) or os.path.exists(self.folder(name)):
+            raise LibraryError("There is already a playlist called '%s'." % label)
+        if mode not in ("loop", "once"):
+            mode = "loop"
+        os.makedirs(self.folder(name))
+        self.cfg.data["playlists"][name] = {"label": label, "mode": mode}
+        self.cfg.save()
+        return name
+
+    def rename_playlist(self, name, label):
+        spec = self.spec(name)
+        if spec is None:
+            raise LibraryError("There is no playlist called '%s'." % name)
+        label = re.sub(r"\s+", " ", label).strip()[:40]
+        if not label:
+            raise LibraryError("Give the playlist a name.")
+        entry = self.cfg.data["playlists"].setdefault(name, {"mode": spec["mode"]})
+        entry["label"] = label
+        self.cfg.save()
+        return name
+
+    def delete_playlist(self, name, with_files=False):
+        spec = self.spec(name)
+        if spec is None:
+            raise LibraryError("There is no playlist called '%s'." % name)
+        files = self.disk_files(name)
+        if files and not with_files:
+            raise LibraryError("'%s' still has %d file%s in it." % (spec["label"], len(files), "" if len(files) == 1 else "s"))
+        if os.path.isdir(spec["dir"]):
+            shutil.rmtree(spec["dir"])
+        self.cfg.data["playlists"].pop(name, None)
+        self.cfg.save()
+        return name
+
     def set_disclaimer(self, name, text, png_bytes):
         spec = self.spec(name)
         if spec is None:
@@ -419,6 +462,69 @@ class Library:
         pcfg = self.cfg.data["playlists"].setdefault(name, {"label": spec["label"], "mode": spec["mode"]})
         pcfg["disclaimer"] = text
         self.cfg.save()
+
+
+# --------------------------------------------------------------------------
+# Thumbnailer: one small still per file, made by mpv (no conversion involved)
+# --------------------------------------------------------------------------
+
+class Thumbnailer:
+    def __init__(self, library):
+        self.lib = library
+        self.stopping = False
+        self.busy = None
+
+    def start(self):
+        threading.Thread(target=self._loop, daemon=True).start()
+
+    def _loop(self):
+        time.sleep(4)
+        while not self.stopping:
+            try:
+                self.sweep()
+            except Exception:
+                log.exception("Thumbnail sweep failed")
+            time.sleep(float(os.environ.get("BALCONY_SCAN_SECONDS", "20")))
+
+    def sweep(self):
+        if not shutil.which("mpv"):
+            return
+        for spec in self.lib.specs():
+            for key in self.lib.disk_files(spec["name"]):
+                thumb = self.lib.thumb_path(spec["name"], key)
+                src = os.path.join(spec["dir"], key)
+                if os.path.isfile(thumb) and os.path.getmtime(thumb) >= os.path.getmtime(src):
+                    continue
+                if os.path.isfile(thumb + ".failed") and os.path.getmtime(thumb + ".failed") >= os.path.getmtime(src):
+                    continue
+                if time.time() - os.path.getmtime(src) < 3:
+                    continue                                  # still being written
+                self.make(src, thumb)
+
+    def make(self, src, thumb):
+        """A 320px JPEG of a frame a little way in, via mpv's image output."""
+        folder = os.path.dirname(thumb)
+        os.makedirs(folder, exist_ok=True)
+        work = os.path.join(folder, ".work-" + str(os.getpid()))
+        os.makedirs(work, exist_ok=True)
+        self.busy = os.path.basename(src)
+        cmd = ["mpv", "--no-config", "--really-quiet", "--no-audio", "--vo=image", "--vo-image-format=jpg",
+               "--vo-image-jpeg-quality=80", "--vo-image-outdir=" + work, "--frames=1", "--start=8%",
+               "--vf=scale=320:-2", "--hwdec=no", src]
+        try:
+            if shutil.which("nice"):
+                cmd = ["nice", "-n", "15"] + cmd
+            subprocess.run(cmd, capture_output=True, timeout=60)
+            made = sorted(f for f in os.listdir(work) if f.endswith(".jpg"))
+            if made:
+                os.replace(os.path.join(work, made[-1]), thumb)
+            else:
+                open(thumb + ".failed", "w").close()
+        except (OSError, subprocess.SubprocessError) as exc:
+            log.warning("No thumbnail for %s: %s", os.path.basename(src), exc)
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+            self.busy = None
 
 
 # --------------------------------------------------------------------------

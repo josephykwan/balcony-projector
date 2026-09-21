@@ -37,7 +37,7 @@ from flask import Flask, jsonify, render_template, request, send_file, send_from
 
 import library
 import solar
-from library import Library, LibraryError, Processor
+from library import Library, LibraryError, Processor, Thumbnailer
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -448,7 +448,7 @@ class Player:
             return
         if self.state.get("mode") == "loop" and self.state.get("playlist"):
             try:
-                self.play(self.state.get("playlist"))
+                self.play(self.state.get("playlist"), self.state.get("file") or None, loop=bool(self.state.get("file")))
                 log.info("Resumed playlist %s", self.state.get("playlist"))
             except (ValueError, MPVError) as exc:
                 self.last_error = str(exc)
@@ -463,6 +463,11 @@ class Player:
                            "to something short" % self.socket_path)
         self.mpv = MPV(self.socket_path, self._mpv_args())
         self.mpv.start()
+        try:
+            self.mpv.set("screenshot-format", "jpg")
+            self.mpv.set("screenshot-jpeg-quality", 80)
+        except MPVError:
+            pass
         self.started_at = time.time()
         self.restarts.append(time.time())
         volume = self.state.get("volume")
@@ -536,7 +541,7 @@ class Player:
             if restarted:
                 if self.state.get("mode") == "loop" and self.state.get("playlist"):
                     try:
-                        self.play(self.state.get("playlist"))
+                        self.play(self.state.get("playlist"), self.state.get("file") or None, loop=bool(self.state.get("file")))
                     except (ValueError, MPVError) as exc:
                         self.last_error = str(exc)
                 elif self.state.get("mode") == "once":
@@ -617,7 +622,9 @@ class Player:
         if not (self.mpv and self.mpv.alive()):
             raise MPVError("The video player isn't running yet. Wait a few seconds and try again.")
 
-    def play(self, playlist, filename=None):
+    def play(self, playlist, filename=None, loop=False):
+        """Play a whole playlist (loops unless it is a play-once list), one file
+        once, or one file looping on its own (loop=True)."""
         info = self.lib.playlist(playlist)
         if info is None:
             raise ValueError("There is no playlist called '%s'." % playlist)
@@ -633,7 +640,9 @@ class Player:
             if match[0]["status"] == "waiting":
                 raise ValueError(match[0]["error"] or "That file is waiting for the 'paid for by' line.")
             paths = [os.path.join(info["dir"], filename)]
-            mode = "once"
+            mode = "loop" if loop else "once"
+            if loop:
+                loop_file = "inf"
         else:
             mode = info["mode"]
             if mode == "once":
@@ -671,8 +680,7 @@ class Player:
             self.ignore_idle = False
             self.last_error = ""
             self.segments = segments
-            self.state.update(mode=mode, playlist=playlist,
-                              file=filename if mode == "once" else None)
+            self.state.update(mode=mode, playlist=playlist, file=filename or None)
         self._mute(False)
         log.info("Playing %s (%s, %d file%s%s)", playlist, mode, len(paths),
                  "" if len(paths) == 1 else "s", ", stitched show" if segments else "")
@@ -716,7 +724,7 @@ class Player:
     def set_shuffle(self, on):
         """Shuffle the order of a looping playlist. Reloads it if it is playing."""
         self.state.update(shuffle=bool(on))
-        if self.state.get("mode") == "loop" and self.state.get("playlist"):
+        if self.state.get("mode") == "loop" and self.state.get("playlist") and not self.state.get("file"):
             self.play(self.state.get("playlist"))
 
     def set_volume(self, volume):
@@ -780,6 +788,7 @@ class Player:
             "playlist_count": 0,
             "playlist_pos": None,
             "show": bool(self.segments),
+            "single": bool(self.state.get("file")) and self.state.get("mode") == "loop",
             "shuffle": bool(self.state.get("shuffle")),
             "dim_level": self.dim_level,
         }
@@ -804,6 +813,22 @@ class Player:
             out["playlist_count"] = m.get("playlist-count", 0) or 0
             out["playlist_pos"] = m.get("playlist-pos")
         return out
+
+    def preview(self, path, min_gap=1.5):
+        """Write the frame on screen to `path` (JPEG). Throttled; returns False when dark."""
+        now = time.time()
+        if now - getattr(self, "_preview_at", 0) < min_gap and os.path.isfile(path):
+            return True
+        with self.lock:
+            if not (self.mpv and self.mpv.alive()) or self.state.get("mode") == "off":
+                return False
+            try:
+                self.mpv.command("screenshot-to-file", path, "video")
+            except MPVError as exc:
+                log.debug("preview failed: %s", exc)
+                return False
+        self._preview_at = now
+        return os.path.isfile(path)
 
     def recent_mpv_output(self):
         if self.mpv is None:
@@ -1274,8 +1299,8 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
         if not pin:
             return None
         given = request.headers.get("X-Pin", "")
-        if not given and request.path.startswith("/api/thumb/"):
-            given = request.args.get("pin", "")
+        if not given and (request.path.startswith("/api/thumb/") or request.path.startswith("/api/preview")):
+            given = request.args.get("pin", "")       # images load from <img>, which can't send headers
         if not hmac.compare_digest(given.encode(), pin.encode()):
             return jsonify({"ok": False, "pin_required": True,
                             "error": "This remote needs the PIN."}), 401
@@ -1406,11 +1431,42 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
         response.headers["Cache-Control"] = "private, max-age=300"
         return response
 
+    preview_path = "/tmp/balcony-preview-%d.jpg" % os.getuid()
+
+    @app.route("/api/preview.jpg")
+    def api_preview():
+        if not player.preview(preview_path):
+            return fail("Nothing on the screen.", 404)
+        response = send_file(preview_path, mimetype="image/jpeg", conditional=False)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.route("/api/playlist", methods=["POST"])
+    def api_playlist():
+        """Create, rename or delete a playlist: {action, name?, label?, mode?}."""
+        body = request.get_json(silent=True) or {}
+        action = str(body.get("action", ""))
+        try:
+            if action == "create":
+                name = lib.create_playlist(str(body.get("label", "")), str(body.get("mode", "loop")))
+            elif action == "rename":
+                name = lib.rename_playlist(str(body.get("name", "")), str(body.get("label", "")))
+            elif action == "delete":
+                name = lib.delete_playlist(str(body.get("name", "")), bool(body.get("with_files")))
+                if player.state.get("playlist") == name and player.state.get("mode") != "off":
+                    player.stop()
+            else:
+                return fail("Say whether to create, rename or delete.")
+        except LibraryError as exc:
+            return fail(str(exc))
+        log.info("Playlist %s: %s", action, name)
+        return jsonify({"ok": True, "name": name, "playlists": lib.playlists()})
+
     @app.route("/api/play", methods=["POST"])
     def api_play():
         body = request.get_json(silent=True) or {}
         try:
-            player.play(str(body.get("playlist", "")), body.get("file") or None)
+            player.play(str(body.get("playlist", "")), body.get("file") or None, loop=bool(body.get("loop")))
         except (ValueError, MPVError) as exc:
             return fail(str(exc))
         return jsonify({"ok": True, "player": player.status()})
@@ -1832,6 +1888,7 @@ def main(argv=None):
     scheduler = Scheduler(cfg, state, player, projector, alerts)
 
     processor.start()
+    Thumbnailer(lib).start()
     try:
         player.start()
     except MPVError as exc:
