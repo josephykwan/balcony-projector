@@ -337,8 +337,10 @@ class Library:
                         pass
             self.save_meta(name, meta)
 
-    def add_file(self, name, filename, stream, dwell=None, source_kind="upload"):
-        """Save an upload into the folder. Returns the file name used."""
+    def add_file(self, name, filename, stream, dwell=None, source_kind="upload", replace=False):
+        """Save an upload into the folder. Returns the file name used.
+        With replace=True a file of the same name is overwritten (a show re-sent
+        from the studio) instead of getting a "(2)" name."""
         spec = self.spec(name)
         if spec is None:
             raise LibraryError("Pick which playlist the file belongs to.")
@@ -357,13 +359,21 @@ class Library:
                 return c in taken or os.path.splitext(c)[0] + ".mp4" in taken
 
             candidate, counter = base, 2
+            if replace:
+                taken.discard(base)
+                taken.discard(os.path.splitext(base)[0] + ".mp4")
             while clashes(candidate):
                 candidate = "%s (%d)%s" % (stem, counter, ext)
                 counter += 1
             target = os.path.join(spec["dir"], candidate)
             stream.save(target + ".part")
             os.replace(target + ".part", target)
-            it = self._new_item(meta, candidate)
+            it = meta["items"].get(candidate) if replace else None
+            if it is None:
+                it = self._new_item(meta, candidate)
+            else:
+                it.update(status="queued" if (self.processor and self.processor.enabled()) else "unprocessed", error="")
+                it.pop("rendered_with", None)
             it["source_kind"] = source_kind
             if dwell:
                 it["dwell"] = int(dwell)

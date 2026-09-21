@@ -382,6 +382,32 @@ class Player:
 
     # ---- lifecycle -------------------------------------------------------
 
+    @staticmethod
+    def _drm_hints():
+        """On a Pi there are two /dev/dri cards; only one drives HDMI. Tell mpv
+        which, and which HDMI port, unless config.json already does."""
+        hints = []
+        try:
+            cards = {}
+            for entry in os.listdir("/sys/class/drm"):
+                if "-HDMI-A-" in entry and entry.startswith("card"):
+                    card = entry.split("-")[0]
+                    with open(os.path.join("/sys/class/drm", entry, "status")) as f:
+                        status = f.read().strip()
+                    cards.setdefault(card, []).append((entry.split("-", 1)[1], status))
+            if cards:
+                card = sorted(cards)[0]
+                for c, ports in cards.items():
+                    if any(st == "connected" for _, st in ports):
+                        card = c
+                hints.append("--drm-device=/dev/dri/" + card)
+                ports = cards[card]
+                connected = [name for name, st in ports if st == "connected"]
+                hints.append("--drm-connector=" + (connected[0] if connected else sorted(ports)[0][0]))
+        except OSError:
+            pass
+        return hints
+
     def _mpv_args(self):
         args = [
             "--fullscreen", "--force-window=yes", "--keep-open=no",
@@ -392,7 +418,13 @@ class Player:
             "--image-display-duration=%d" % int(self.cfg.data.get("image_seconds", 12)),
             "--volume-max=100",
         ]
-        args += list(self.cfg.data.get("mpv_video_args", []))
+        video_args = list(self.cfg.data.get("mpv_video_args", []))
+        if "--gpu-context=drm" in video_args or "--vo=drm" in video_args:
+            for hint in self._drm_hints():
+                key = hint.split("=")[0]
+                if not any(a.startswith(key + "=") for a in video_args):
+                    video_args.append(hint)
+        args += video_args
         device = self.cfg.data.get("audio_device") or "auto"
         if device != "auto":
             args.append("--audio-device=" + device)
@@ -481,11 +513,11 @@ class Player:
                 recent = [t for t in self.restarts if time.time() - t < 120]
                 if len(recent) >= 4:
                     self.gave_up = True
-                    self.retry_at = time.time() + 600
-                    self.last_error = ("The video player keeps crashing. It will try again in ten "
-                                       "minutes, or tap 'Restart the player' now. If it keeps "
-                                       "happening, check the log.")
-                    log.error("mpv crashed %d times in two minutes, pausing for ten minutes", len(recent))
+                    self.retry_at = time.time() + 120
+                    self.last_error = ("The video player keeps crashing. It will try again in two "
+                                       "minutes, or tap 'Restart the player' now. If the projector "
+                                       "is off, that may be why.")
+                    log.error("mpv crashed %d times in two minutes, pausing for two minutes", len(recent))
                     self.alerts.send("crashloop", "Balcony: player keeps crashing", self.last_error)
                     continue
                 log.warning("mpv is not running, restarting it")
@@ -1246,6 +1278,20 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
                             "error": "This remote needs the PIN."}), 401
         return None
 
+    @app.after_request
+    def allow_studio(response):
+        # The laptop studio page (a local file or localhost) talks to this API directly.
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Pin"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        return response
+
+    @app.route("/api/<path:_any>", methods=["OPTIONS", "GET", "POST"])
+    def api_preflight(_any):
+        if request.method == "OPTIONS":
+            return ("", 204)
+        return fail("There's nothing at that address.", 404)
+
     @app.route("/")
     def index():
         return render_template("index.html")
@@ -1640,15 +1686,23 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
         except ValueError:
             return fail("Picture time should be between 2 and 600 seconds.")
         kind = "slide" if request.form.get("slide") else "upload"
+        replace = bool(request.form.get("replace"))
         try:
-            name = lib.add_file(playlist, upload.filename, upload, dwell=dwell, source_kind=kind)
+            name = lib.add_file(playlist, upload.filename, upload, dwell=dwell, source_kind=kind, replace=replace)
         except LibraryError as exc:
             return fail(str(exc))
         except OSError as exc:
             return fail("Couldn't save the file: %s" % exc)
         log.info("Added %s to %s (%s)", name, playlist, kind)
+        played = False
+        if request.form.get("play"):
+            try:
+                player.play(playlist)
+                played = True
+            except (ValueError, MPVError) as exc:
+                log.warning("Uploaded but could not start %s: %s", playlist, exc)
         return jsonify({"ok": True, "name": name, "playlist": playlist,
-                        "processing": processor.enabled()})
+                        "processing": processor.enabled(), "playing": played})
 
     @app.route("/api/disclaimer", methods=["POST"])
     def api_disclaimer():

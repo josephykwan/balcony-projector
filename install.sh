@@ -100,11 +100,11 @@ add_cmdline_opts() {
   printf '%s\n' "$line" > "$CMDLINE"
 }
 
-echo "==> Setting the HDMI output to the projector's native 1280x800"
+echo "==> Setting the HDMI output to the projector's native 1280x800 (kept on even when the projector is off)"
 if [[ -f $CMDLINE ]] && grep -q "video=HDMI-A-1:" "$CMDLINE"; then
   echo "    (a video= setting is already there, leaving it)"
 else
-  add_cmdline_opts "video=HDMI-A-1:1280x800@60"
+  add_cmdline_opts "video=HDMI-A-1:1280x800@60D"
 fi
 
 if [[ $SHARE -eq 1 ]]; then
