@@ -1774,6 +1774,15 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
         lib.reorder(playlist, names)
         return jsonify({"ok": True, "playlist": lib.playlist(playlist)})
 
+    @app.route("/api/note", methods=["POST"])
+    def api_note():
+        """The studio reports what it is doing, so problems show up in the Pi's log."""
+        body = request.get_json(silent=True) or {}
+        text = str(body.get("text", ""))[:300]
+        if text:
+            log.info("Studio: %s", text)
+        return jsonify({"ok": True})
+
     @app.route("/api/log")
     def api_log():
         return jsonify({"ok": True, "app": list(ring.lines), "mpv": player.recent_mpv_output(),

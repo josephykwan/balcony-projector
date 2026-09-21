@@ -752,6 +752,10 @@
       xhr.send(form);
     });
   }
+  function note(text) {
+    // a line in the Pi's log, so a failed send can be diagnosed from the phone page
+    try { fetch(state.pi + "/api/note", { method: "POST", headers: Object.assign({ "Content-Type": "application/json" }, state.pin ? { "X-Pin": state.pin } : {}), body: JSON.stringify({ text: text }) }).catch(() => {}); } catch (e) {}
+  }
   function setProgress(barId, frac) { const bar = $(barId); bar.hidden = false; bar.firstElementChild.style.width = Math.round(frac * 100) + "%"; }
   function say(id, text, cls) { const st = $(id); st.className = "status" + (cls ? " " + cls : ""); st.textContent = text; }
 
@@ -760,7 +764,9 @@
     state.busy = true; $("btn-send").disabled = true;
     try {
       say("status", "Rendering " + total + " seconds of video…");
+      note("rendering " + TEMPLATES[state.template].label + " show, " + total + " s, " + navigator.userAgent.slice(0, 60));
       const blob = await renderShow((f) => { setProgress("progress", f * 0.85); say("status", "Rendering… " + Math.round(f * 100) + "%"); });
+      note("rendered " + blob.size + " bytes");
       console.log("balcony-studio rendered", blob.size, "bytes");
       say("status", "Sending " + Math.round(blob.size / 1e6 * 10) / 10 + " MB to the Pi…");
       const name = TEMPLATES[state.template].label + " show.mp4";
@@ -771,6 +777,7 @@
     } catch (e) {
       say("status", e.message, "warn");
       console.log("balcony-studio failed", e.message);
+      note("send failed: " + e.message);
     } finally {
       state.busy = false; $("btn-send").disabled = false; setTimeout(() => { $("progress").hidden = true; }, 1500);
       clock = performance.now();
@@ -859,6 +866,7 @@
       say("vstatus", (data.playing ? "Sent. The Pi is playing it now." : "Sent to the Pi.") + note, "ok");
     } catch (e) {
       say("vstatus", e.message, "warn");
+      note("video send failed: " + e.message);
     } finally {
       state.busy = false; $("btn-send").disabled = false; setTimeout(() => { $("vprogress").hidden = true; }, 1500);
     }
