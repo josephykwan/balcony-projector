@@ -4,15 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Balcony Studio</title>
+<script>
+  // The page works from a local file (../vendor, ../fonts) or served by the Pi at /studio/ (vendor/, fonts/).
+  window.STUDIO_BASE = location.pathname.indexOf("/studio/") === 0 ? "/studio/" : "../";
+  document.write('<script src="' + window.STUDIO_BASE + 'vendor/mp4-muxer.js"><\/script>');
+</script>
 <style>
+  /* font paths are fixed up in the script below when served from the Pi */
   @font-face { font-family: "Anton"; src: url("../fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
   @font-face { font-family: "Inter"; src: url("../fonts/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
   :root { --bg:#0f1115; --card:#181b22; --card-2:#20242d; --line:#2b303b; --text:#e8e9ee; --muted:#9aa0ad; --accent:#f2a33a; --accent-text:#1a1206; --warn:#f5d08a; --warn-bg:#3b2d14; --ok:#9be39b; }
   * { box-sizing: border-box; }
   html, body { margin:0; background:var(--bg); color:var(--text); font:16px/1.45 "Inter", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  header { position: sticky; top: 0; z-index: 3; display:flex; align-items:center; justify-content:space-between; gap: 12px; padding:12px 20px; background: rgba(15,17,21,.92); backdrop-filter: blur(8px); border-bottom:1px solid var(--line); }
+  header { position: sticky; top: 0; z-index: 3; display:flex; align-items:center; justify-content:space-between; gap: 12px; padding:10px 20px; background: rgba(15,17,21,.92); backdrop-filter: blur(8px); border-bottom:1px solid var(--line); flex-wrap: wrap; }
   h1 { font-size:18px; margin:0; font-weight:700; }
-  h1 span { color:var(--muted); font-weight:400; }
+  .tabs { display:flex; gap:6px; }
+  .tabs button { min-height:36px; padding:6px 14px; border-radius:999px; font-weight:600; }
+  .tabs button.on { background: var(--text); color: var(--bg); }
   main { max-width: 860px; margin: 0 auto; padding: 16px 20px 60px; display: grid; gap: 16px; }
   .card { background:var(--card); border-radius:14px; padding:16px; }
   button { appearance:none; border:0; border-radius:10px; min-height:42px; padding:8px 16px; font:inherit; font-weight:600; color:var(--text); background:var(--card-2); cursor:pointer; }
@@ -22,8 +30,8 @@
   button.chip { border-radius: 999px; }
   button.chip.on { background: var(--text); color: var(--bg); }
   .preview-wrap { position:relative; background:#000; border-radius:12px; overflow:hidden; aspect-ratio:16/10; border:1px solid var(--line); }
-  canvas#stage { width:100%; height:100%; display:block; }
-  canvas#stage.mirror { transform: scaleX(-1); }
+  canvas#stage, video#vprev { width:100%; height:100%; display:block; background:#000; object-fit: contain; }
+  .mirror { transform: scaleX(-1); }
   .scrub { display:flex; align-items:center; gap:10px; margin-top:12px; }
   .dots { display:flex; gap:8px; flex:1; justify-content:center; }
   .dots button { width:14px; height:14px; min-height:0; padding:0; border-radius:50%; background:var(--line); }
@@ -36,7 +44,8 @@
   .label { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:10px; }
   .field { display:grid; grid-template-columns: 110px 1fr; align-items:center; gap:10px; margin-top:10px; }
   .field label { color:var(--muted); font-size:15px; }
-  .field input[type=text] { width:100%; font:inherit; font-size:18px; color:var(--text); background:var(--card-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; text-transform: uppercase; }
+  .field input[type=text], .field select { width:100%; font:inherit; font-size:18px; color:var(--text); background:var(--card-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .field input.caps { text-transform: uppercase; }
   .field input.required-missing { border-color: var(--warn); }
   .hint { color:var(--muted); font-size:13px; margin-top:8px; }
   .drop { margin-top:10px; border:2px dashed var(--line); border-radius:10px; padding:14px; text-align:center; color:var(--muted); cursor:pointer; }
@@ -57,18 +66,25 @@
   label.check input { width:16px; height:16px; accent-color:var(--accent); margin:0; }
   .progress { height:8px; background:var(--card-2); border-radius:4px; overflow:hidden; margin-top:10px; }
   .progress > div { height:100%; width:0; background:var(--accent); transition: width .2s; }
+  .opts { display:grid; gap:10px; margin-top:12px; }
   footer { color:var(--muted); font-size:12px; text-align:center; padding: 0 20px 24px; }
+  [hidden] { display: none !important; }
   @media (max-width: 600px) { .field { grid-template-columns: 1fr; gap: 4px; } .tune-row { grid-template-columns: 1fr 1fr; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>Balcony Studio <span id="crumb">/ Campaign</span></h1>
+  <h1>Balcony Studio</h1>
+  <div class="tabs">
+    <button id="tab-show" class="on">Make a show</button>
+    <button id="tab-video">Send a video</button>
+  </div>
   <button id="btn-send" class="primary">Send to balcony</button>
 </header>
 
 <main>
-  <section class="card">
+  <!-- ===== Make a show ===== -->
+  <section class="card" id="pane-show-preview">
     <div class="preview-wrap">
       <canvas id="stage" width="1280" height="800"></canvas>
     </div>
@@ -82,7 +98,7 @@
     <div class="progress" id="progress" hidden><div></div></div>
   </section>
 
-  <section class="card">
+  <section class="card" id="pane-show-form">
     <div class="templates">
       <span class="label">Template</span>
       <button class="chip on" data-template="campaign">Campaign</button>
@@ -91,12 +107,10 @@
     </div>
     <div id="fields"></div>
     <div class="hint">Leave a line blank to skip it. Add a smaller second line with a bar, like <b>VOTE NOV 3 | Early voting Oct 19</b>.</div>
-    <div id="campaign-extras">
-      <div class="field" id="payer-row"><label for="payer">Paid for by</label><input type="text" id="payer" placeholder="YOUR NAME, OR THE COMMITTEE'S" maxlength="80"></div>
-      <div class="hint" id="payer-hint">Required on political advertising in Texas. It goes on every frame.</div>
-      <div class="drop" id="drop">Drop the campaign logo PNG here, or click to choose.</div>
-      <input type="file" id="logo" accept="image/png,image/svg+xml,image/jpeg" hidden>
-    </div>
+    <div class="field" id="payer-row"><label for="payer">Paid for by</label><input type="text" id="payer" class="caps" placeholder="YOUR NAME, OR THE COMMITTEE'S" maxlength="80"></div>
+    <div class="hint" id="payer-hint">Required on political advertising in Texas. It goes on every frame.</div>
+    <div class="drop" id="drop">Drop the campaign logo PNG here, or click to choose.</div>
+    <input type="file" id="logo" accept="image/png,image/svg+xml,image/jpeg" hidden>
   </section>
 
   <details class="card" id="tune">
@@ -112,17 +126,41 @@
       <label class="check" style="margin-top:22px"><input type="checkbox" id="g-invert"> Invert the artwork (for dark-on-white logos)</label>
       <label class="check" style="margin-top:22px"><input type="checkbox" id="g-knock" checked> Make white backgrounds transparent</label>
     </div>
+    <div class="label" style="margin-top:16px">The Pi</div>
+    <div class="g-row">
+      <label>Address <input type="text" id="g-pi" value="http://balcony.local:8080"></label>
+      <label>PIN (if you set one on the phone page) <input type="text" id="g-pin" placeholder="none"></label>
+    </div>
   </details>
+
+  <!-- ===== Send a video ===== -->
+  <section class="card" id="pane-video" hidden>
+    <div class="label">A video made anywhere else</div>
+    <p class="hint" style="margin-top:0">AtmosFX clips, something from Keynote or Canva, a phone video. It is converted here on the laptop into exactly what the Pi plays: 1280x800, 30 frames a second, black background, then sent.</p>
+    <div class="drop" id="vdrop">Drop a video here, or click to choose (MP4, MOV, WebM).</div>
+    <input type="file" id="vfile" accept="video/*" hidden>
+    <div class="preview-wrap" id="vprev-wrap" hidden><video id="vprev" muted playsinline loop controls></video></div>
+    <div class="opts">
+      <div class="field"><label for="vplaylist">Playlist</label><select id="vplaylist"><option value="halloween">Halloween</option><option value="campaign">Campaign</option><option value="movies">Movies</option></select></div>
+      <label class="check"><input type="checkbox" id="v-loop" checked> Blend the end into the start so it loops without a jump</label>
+      <label class="check"><input type="checkbox" id="v-black" checked> Make near-black pure black (invisible on the mesh)</label>
+      <label class="check"><input type="checkbox" id="v-dim" checked> Tone down frames that are too bright for the mesh</label>
+      <label class="check"><input type="checkbox" id="v-mirror"> Preview mirrored</label>
+    </div>
+    <div class="status" id="vstatus">Drop a video to begin.</div>
+    <div class="progress" id="vprogress" hidden><div></div></div>
+  </section>
 </main>
-<footer>Mock-up of the laptop studio. The real one renders every beat to MP4 and copies the show to the Pi in one step.</footer>
+<footer>Everything happens in this browser: the show is rendered here as an MP4 and sent to the Pi over Wi-Fi. Nothing is uploaded anywhere else.</footer>
 
 <script>
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const W = 1280, H = 800, MARGIN = 40, FOOT_BAND = 96, FOOT_PX = 52, SUB_MIN = 64;
+  const W = 1280, H = 800, FPS = 30, MARGIN = 40, FOOT_BAND = 96, FOOT_PX = 52, SUB_MIN = 64;
   const IN_PER_PX = 90 / 1280;                 // the picture is about 7.5 ft wide
   const FADE = 1.5;                             // seconds, in and out
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // ---- templates ---------------------------------------------------------
   const TEMPLATES = {
@@ -178,18 +216,35 @@
     reveal_behind: "Reveal behind", halo_pulse: "Halo pulse", trail_wipe: "Trail wipe" };
 
   const state = {
+    tab: "show",
     template: "campaign",
-    values: { campaign: {}, halloween: {}, holiday: {} },
+    values: {
+      campaign: { name: "JANE DOE", office: "FOR CITY COUNCIL", message: "SAFER STREETS", ask: "VOTE NOV 3 | Early voting Oct 19", website: "JANEDOE.ORG" },
+      halloween: { greeting: "HAPPY HALLOWEEN", message: "TRICK OR TREAT | 6 to 9 pm", when: "OCT 31" },
+      holiday: { greeting: "HAPPY HOLIDAYS", message: "PEACE ON EARTH", when: "DEC 24" },
+    },
     overrides: { campaign: {}, halloween: {}, holiday: {} },
-    payer: "",
-    logo: null,                 // processed canvas
-    logoInvert: false, knockWhite: true,
+    payer: "", logo: null, logoInvert: false, knockWhite: true,
     color: "#ffffff", accent: "#f2a33a", footer: "top", mesh: false,
+    pi: location.protocol.indexOf("http") === 0 ? location.origin : "http://balcony.local:8080", pin: "",
+    busy: false,
   };
-  // sensible starting words so the preview is not empty
-  state.values.campaign = { name: "JANE DOE", office: "FOR CITY COUNCIL", message: "SAFER STREETS", ask: "VOTE NOV 3 | Early voting Oct 19", website: "JANEDOE.ORG" };
-  state.values.halloween = { greeting: "HAPPY HALLOWEEN", message: "TRICK OR TREAT | 6 to 9 pm", when: "OCT 31" };
-  state.values.holiday = { greeting: "HAPPY HOLIDAYS", message: "PEACE ON EARTH", when: "DEC 24" };
+  if (location.protocol.indexOf("http") === 0) {
+    // served by the Pi: point the fonts at /studio/fonts/
+    const fixed = document.createElement("style");
+    fixed.textContent = '@font-face { font-family: "Anton"; src: url("' + window.STUDIO_BASE + 'fonts/Anton-Regular.ttf") format("truetype"); }' +
+      '@font-face { font-family: "Inter"; src: url("' + window.STUDIO_BASE + 'fonts/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; }';
+    document.head.appendChild(fixed);
+  }
+  // remember the words between visits
+  try {
+    const saved = JSON.parse(localStorage.getItem("balcony-studio") || "{}");
+    ["template", "values", "overrides", "payer", "footer", "pin"].forEach((k) => { if (saved[k] !== undefined) state[k] = saved[k]; });
+    if (saved.pi && location.protocol.indexOf("http") !== 0) state.pi = saved.pi;
+  } catch (e) { /* first visit */ }
+  function persist() {
+    try { localStorage.setItem("balcony-studio", JSON.stringify({ template: state.template, values: state.values, overrides: state.overrides, payer: state.payer, footer: state.footer, pi: state.pi, pin: state.pin })); } catch (e) {}
+  }
 
   function rng(s) { let x = s >>> 0; return () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; }; }
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -216,7 +271,6 @@
   // ---- artwork: each beat's words (or logo) drawn once into a layer --------------
   const artCache = new Map();
   function contentBox() {
-    // the area words may use, leaving the footer band and a safe margin
     const top = MARGIN + (state.footer === "top" ? FOOT_BAND : 0);
     const bottom = H - MARGIN - (state.footer === "bottom" ? FOOT_BAND : 0);
     return { top, bottom, height: bottom - top };
@@ -232,7 +286,6 @@
     const c = document.createElement("canvas"); c.width = W; c.height = H;
     const ctx = c.getContext("2d");
     const full = contentBox();
-    // with a hero graphic above, the words take the lower 42% of the space
     const box = beat.hero ? { top: full.top + full.height * 0.58, bottom: full.bottom, height: full.height * 0.42 } : full;
     const info = { canvas: c, headPx: 0, subPx: 0, subFits: true };
     if (beat.logo) {
@@ -250,18 +303,14 @@
         info.subFits = ctx.measureText(beat.subline).width <= W * 0.84;
       }
       const total = headPx * 0.95 + (subPx ? subPx * 1.5 : 0);
-      let y = box.top + (box.height - total) / 2 + headPx * 0.85;
+      const y = box.top + (box.height - total) / 2 + headPx * 0.85;
       ctx.fillStyle = state.color; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
       ctx.font = "400 " + headPx + "px Anton, Impact, 'Arial Narrow', sans-serif";
       ctx.fillText(beat.headline, W / 2, y);
-      if (subPx) {
-        ctx.font = "700 " + subPx + "px Inter, Helvetica, Arial, sans-serif";
-        ctx.fillText(beat.subline, W / 2, y + subPx * 1.35);
-      }
-      info.headPx = headPx * 0.72;      // cap height, roughly
+      if (subPx) { ctx.font = "700 " + subPx + "px Inter, Helvetica, Arial, sans-serif"; ctx.fillText(beat.subline, W / 2, y + subPx * 1.35); }
+      info.headPx = headPx * 0.72;
       info.subPx = subPx * 0.72;
     }
-    // points on the artwork, for particle effects
     const data = ctx.getImageData(0, 0, W, H).data;
     const r = rng(11);
     const pts = [];
@@ -284,7 +333,7 @@
     if (clip) { ctx.beginPath(); ctx.rect(clip.x, 0, clip.w, H); ctx.clip(); }
     const box = contentBox(), cy = box.top + box.height / 2;
     ctx.translate(W / 2, cy); ctx.scale(scale || 1, scale || 1); ctx.translate(-W / 2, -cy);
-    ctx.shadowColor = state.color; ctx.shadowBlur = glow == null ? 6 : Math.min(glow, 8);   // crisp; a hint of glow at most
+    ctx.shadowColor = state.color; ctx.shadowBlur = glow == null ? 6 : Math.min(glow, 8);
     ctx.drawImage(art.canvas, 0, 0);
     ctx.restore();
   }
@@ -293,18 +342,18 @@
     pts.forEach((p, i) => { const q = fn(p, i); if (q) ctx.fillRect(q[0], q[1], 3, 3); });
     ctx.restore();
   }
-
-  // envelope: fade in / hold / fade out, in seconds
   function envelope(t, dur) {
     const f = Math.min(FADE, dur / 3);
     return { t, dur, f, ain: clamp(t / f, 0, 1), aout: clamp((dur - t) / f, 0, 1), outP: clamp(1 - (dur - t) / f, 0, 1) };
   }
+  let layerCanvas = null;
+  function layer() { if (!layerCanvas) { layerCanvas = document.createElement("canvas"); layerCanvas.width = W; layerCanvas.height = H; } return layerCanvas; }
 
   const effects = {
     particle_assemble(ctx, beat, art, e) {
       const r = rng(21);
-      const assemble = clamp(t2p(e.t, 0, 2.6), 0, 1);
-      const dotsIn = clamp(e.t / 0.5, 0, 1);                       // dots fade in from black over 0.5 s
+      const assemble = clamp(e.t / 2.6, 0, 1);
+      const dotsIn = clamp(e.t / 0.5, 0, 1);
       const textIn = clamp((e.t - 2.4) / 0.6, 0, 1);
       if (assemble < 1 || e.outP > 0) {
         drawParticles(ctx, art.points, (p) => {
@@ -313,15 +362,14 @@
           return [sx + (p[0] - sx) * q, sy + (p[1] - sy) * q];
         }, dotsIn * (1 - textIn) * e.aout, state.accent);
       }
-      drawArt(ctx, art, textIn * e.aout, 1, 14);
+      drawArt(ctx, art, textIn * e.aout, 1, 6);
     },
     depth_drift(ctx, beat, art, e) {
-      drawArt(ctx, art, Math.min(e.ain, e.aout), 0.94 + 0.08 * (e.t / e.dur), 12);
+      drawArt(ctx, art, Math.min(e.ain, e.aout), 0.94 + 0.08 * (e.t / e.dur), 6);
     },
     light_sweep(ctx, beat, art, e) {
       const a = Math.min(e.ain, e.aout);
       drawArt(ctx, art, a * 0.85, 1, 4);
-      // the sweep is drawn on a transparent layer so it only lights the letters
       const x = -300 + (W + 600) * ease(clamp(e.t / (e.dur - e.f), 0, 1));
       const lc = layer(), l = lc.getContext("2d");
       l.clearRect(0, 0, W, H);
@@ -335,7 +383,7 @@
     reveal_behind(ctx, beat, art, e) {
       const open = ease(clamp(e.t / 1.5, 0, 1));
       const w = W * open;
-      drawArt(ctx, art, e.aout, 1, 14, { x: (W - w) / 2, w: w });
+      drawArt(ctx, art, e.aout, 1, 6, { x: (W - w) / 2, w: w });
       const lines = clamp(1 - (e.t - 1.5) / 0.6, 0, 1) * e.aout;
       if (lines > 0) {
         const box = contentBox();
@@ -346,8 +394,8 @@
     },
     halo_pulse(ctx, beat, art, e) {
       const a = Math.min(e.ain, e.aout);
-      drawArt(ctx, art, a, 1, 14);
-      const pulse = 0.5 + 0.5 * Math.sin(e.t * Math.PI);            // one pulse every two seconds
+      drawArt(ctx, art, a, 1, 6);
+      const pulse = 0.5 + 0.5 * Math.sin(e.t * Math.PI);
       const box = contentBox();
       ctx.save(); ctx.globalAlpha = a * (0.55 + 0.45 * pulse); ctx.strokeStyle = state.accent; ctx.lineWidth = 4; ctx.shadowBlur = 0;
       ctx.beginPath(); ctx.ellipse(W / 2, box.top + box.height / 2, 540 + 16 * pulse, 260 + 10 * pulse, 0, 0, Math.PI * 2); ctx.stroke();
@@ -356,7 +404,7 @@
     trail_wipe(ctx, beat, art, e) {
       const q = ease(clamp(e.t / 1.5, 0, 1));
       const w = W * q;
-      drawArt(ctx, art, e.aout, 1, 14, { x: 0, w: w });
+      drawArt(ctx, art, e.aout, 1, 6, { x: 0, w: w });
       if (q < 0.98) {
         const r = rng(5), box = contentBox();
         ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.7 * (1 - q); ctx.shadowBlur = 0;
@@ -372,22 +420,13 @@
       }
     },
   };
-  function t2p(t, from, to) { return (t - from) / (to - from); }
-  let layerCanvas = null;
-  function layer() { if (!layerCanvas) { layerCanvas = document.createElement("canvas"); layerCanvas.width = W; layerCanvas.height = H; } return layerCanvas; }
-
-  // particle burst: the words fly apart during the fade-out instead of fading
   function burst(ctx, art, e) {
-    if (e.outP <= 0) return false;
     const r = rng(33);
     drawParticles(ctx, art.points, (p) => {
       const ang = r() * Math.PI * 2, speed = 120 + r() * 420, d = e.outP;
       return [p[0] + Math.cos(ang) * speed * d, p[1] + Math.sin(ang) * speed * d];
     }, 1 - e.outP, state.accent);
-    return true;
   }
-
-  // backgrounds for the seasonal templates: small bright sparse dots only
   function background(ctx, kind, time) {
     const r = rng(kind === "snow" ? 77 : 99);
     ctx.save(); ctx.shadowBlur = 0;
@@ -407,10 +446,7 @@
   }
 
   // ---- hero graphics -----------------------------------------------------------
-  function heroBox() {
-    const full = contentBox();
-    return { x: W / 2, top: full.top, height: full.height * 0.56 };
-  }
+  function heroBox() { const full = contentBox(); return { x: W / 2, top: full.top, height: full.height * 0.56 }; }
   function drawHero(ctx, hero, time, alpha) {
     if (!hero || alpha <= 0) return;
     const hb = heroBox();
@@ -431,14 +467,11 @@
     ctx.restore();
   }
   function drawPumpkin(ctx, time) {
-    // candle flicker: a few sines plus a little jitter, never below 60%
     const flick = 0.6 + 0.4 * clamp(0.5 + 0.25 * Math.sin(time * 11) + 0.15 * Math.sin(time * 7.3 + 1) + 0.1 * Math.sin(time * 23.7), 0, 1);
-    // stem and leaf
     ctx.fillStyle = "#3f7a2a"; ctx.strokeStyle = "#2c5a1c"; ctx.lineWidth = 6; ctx.lineJoin = "round";
     ctx.beginPath(); ctx.moveTo(-26, -150); ctx.quadraticCurveTo(-30, -200, -6, -222); ctx.quadraticCurveTo(24, -230, 20, -200);
     ctx.quadraticCurveTo(8, -180, 14, -150); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = "#5aa03a"; ctx.beginPath(); ctx.ellipse(-70, -178, 44, 18, -0.5, 0, Math.PI * 2); ctx.fill();
-    // body: five lobes, back to front
     const lobes = [[-118, 92, 118], [118, 92, 118], [-64, 110, 136], [64, 110, 136], [0, 118, 148]];
     lobes.forEach(([x, rx, ry]) => {
       const g = ctx.createRadialGradient(x - rx * 0.3, -40, 10, x, 0, ry * 1.2);
@@ -446,24 +479,21 @@
       ctx.fillStyle = g; ctx.strokeStyle = "#8f3b0a"; ctx.lineWidth = 5;
       ctx.beginPath(); ctx.ellipse(x, 0, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     });
-    // the light inside, showing through the face
     const light = ctx.createRadialGradient(0, 30, 10, 0, 30, 170);
     light.addColorStop(0, "rgba(255,240,150," + flick + ")"); light.addColorStop(0.5, "rgba(255,170,40," + (0.9 * flick) + ")"); light.addColorStop(1, "rgba(120,40,0," + (0.8 * flick) + ")");
     ctx.fillStyle = light;
     const face = () => {
-      ctx.beginPath(); ctx.moveTo(-100, -30); ctx.lineTo(-40, -30); ctx.lineTo(-70, -90); ctx.closePath();           // left eye
-      ctx.moveTo(40, -30); ctx.lineTo(100, -30); ctx.lineTo(70, -90); ctx.closePath();                                 // right eye
-      ctx.moveTo(-16, 20); ctx.lineTo(16, 20); ctx.lineTo(0, -8); ctx.closePath();                                     // nose
-      ctx.moveTo(-110, 50); ctx.quadraticCurveTo(0, 160, 110, 50);                                                     // grin
+      ctx.beginPath(); ctx.moveTo(-100, -30); ctx.lineTo(-40, -30); ctx.lineTo(-70, -90); ctx.closePath();
+      ctx.moveTo(40, -30); ctx.lineTo(100, -30); ctx.lineTo(70, -90); ctx.closePath();
+      ctx.moveTo(-16, 20); ctx.lineTo(16, 20); ctx.lineTo(0, -8); ctx.closePath();
+      ctx.moveTo(-110, 50); ctx.quadraticCurveTo(0, 160, 110, 50);
       ctx.lineTo(86, 62); ctx.lineTo(70, 98); ctx.lineTo(52, 70); ctx.lineTo(20, 104); ctx.lineTo(0, 72);
       ctx.lineTo(-20, 104); ctx.lineTo(-52, 70); ctx.lineTo(-70, 98); ctx.lineTo(-86, 62); ctx.closePath();
     };
     face(); ctx.fill();
-    // a little glow spilling out of the face
     ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.35 * flick; ctx.shadowColor = "#ffb347"; ctx.shadowBlur = 30;
     ctx.fillStyle = "rgba(255,180,60,0.6)"; face(); ctx.fill(); ctx.restore();
   }
-
   function drawFooter(ctx) {
     const text = "Pol. adv. paid for by " + (state.payer.trim() || "________________");
     const y = state.footer === "top" ? MARGIN + FOOT_BAND / 2 : H - MARGIN - FOOT_BAND / 2;
@@ -474,66 +504,70 @@
     ctx.fillText(text, W / 2, y + 2); ctx.restore();
   }
 
-  // ---- playback ---------------------------------------------------------------
+  // ---- one frame of the show at time t, deterministic (preview and export share it) ----
+  function timelineAt(t, beats) {
+    let acc = 0;
+    for (let i = 0; i < beats.length; i++) { if (t < acc + beats[i].seconds) return { i, local: t - acc }; acc += beats[i].seconds; }
+    return { i: 0, local: 0 };
+  }
+  function drawShowFrame(ctx, t, beats) {
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H); ctx.restore();
+    const tpl = TEMPLATES[state.template];
+    if (tpl.background) background(ctx, tpl.background, t);
+    if (!beats.length) return null;
+    const pos = timelineAt(t, beats);
+    const beat = beats[pos.i], art = artwork(beat), e = envelope(pos.local, beat.seconds);
+    if (beat.hero) drawHero(ctx, beat.hero, t, 1);
+    if (beat.transition === "particle_burst" && e.outP > 0) burst(ctx, art, e);
+    else effects[beat.effect](ctx, beat, art, e);
+    if (beat.political) drawFooter(ctx);
+    return pos;
+  }
+
+  // ---- live preview -------------------------------------------------------------
   const raw = document.createElement("canvas"); raw.width = W; raw.height = H;
-  const rctx = raw.getContext("2d");
+  const rctx = raw.getContext("2d", { willReadFrequently: true });
   const stage = $("stage"), sctx = stage.getContext("2d");
   const sampler = document.createElement("canvas"); sampler.width = 64; sampler.height = 40;
   let clock = performance.now(), lastSample = 0;
-  const peaks = {};       // beat index -> peak mean luminance
+  const peaks = {};
 
-  function timeline() {
-    const beats = activeBeats();
-    const total = beats.reduce((a, b) => a + b.seconds, 0) || 1;
-    const t = ((performance.now() - clock) / 1000) % total;
-    let acc = 0;
-    for (let i = 0; i < beats.length; i++) {
-      if (t < acc + beats[i].seconds) return { beats, i, local: t - acc, total, t };
-      acc += beats[i].seconds;
-    }
-    return { beats, i: 0, local: 0, total, t: 0 };
-  }
+  function showTotal(beats) { return beats.reduce((a, b) => a + b.seconds, 0) || 1; }
   function jumpTo(i) {
     const beats = activeBeats();
     let acc = 0;
     for (let k = 0; k < i && k < beats.length; k++) acc += beats[k].seconds;
     clock = performance.now() - acc * 1000;
   }
-
+  function meanLuma(canvas) {
+    const sc = sampler.getContext("2d", { willReadFrequently: true }); sc.drawImage(canvas, 0, 0, 64, 40);
+    const d = sc.getImageData(0, 0, 64, 40).data; let sum = 0;
+    for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    return sum / (d.length / 4) / 255;
+  }
   function frame() {
-    const tl = timeline();
-    rctx.save(); rctx.setTransform(1, 0, 0, 1, 0, 0); rctx.globalAlpha = 1; rctx.shadowBlur = 0; rctx.globalCompositeOperation = "source-over";
-    rctx.fillStyle = "#000"; rctx.fillRect(0, 0, W, H); rctx.restore();
-    const tpl = TEMPLATES[state.template];
-    if (tpl.background) background(rctx, tpl.background, tl.t);
-    if (tl.beats.length) {
-      const beat = tl.beats[tl.i], art = artwork(beat), e = envelope(tl.local, beat.seconds);
-      if (beat.hero) drawHero(rctx, beat.hero, tl.t, 1);
-      if (beat.transition === "particle_burst" && e.outP > 0) { burst(rctx, art, e); }
-      else effects[beat.effect](rctx, beat, art, e);
-      if (beat.political) drawFooter(rctx);
+    if (state.tab === "show" && !state.busy) {
+      const beats = activeBeats();
+      const t = ((performance.now() - clock) / 1000) % showTotal(beats);
+      const pos = drawShowFrame(rctx, t, beats);
+      if (pos && performance.now() - lastSample > 500) {
+        lastSample = performance.now();
+        const key = state.template + ":" + beats[pos.i].index;
+        peaks[key] = Math.max(peaks[key] || 0, meanLuma(raw));
+        updateStatus();
+      }
+      sctx.save(); sctx.filter = state.mesh ? "brightness(0.55)" : "none";
+      sctx.fillStyle = "#000"; sctx.fillRect(0, 0, W, H); sctx.drawImage(raw, 0, 0); sctx.restore();
+      renderDots(beats, pos ? pos.i : 0);
     }
-    // brightness sample, twice a second, on the real frame (before the mesh look)
-    if (performance.now() - lastSample > 500 && tl.beats.length) {
-      lastSample = performance.now();
-      const sc = sampler.getContext("2d"); sc.drawImage(raw, 0, 0, 64, 40);
-      const d = sc.getImageData(0, 0, 64, 40).data; let sum = 0;
-      for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
-      const mean = sum / (d.length / 4) / 255;
-      const key = state.template + ":" + tl.beats[tl.i].index;
-      peaks[key] = Math.max(peaks[key] || 0, mean);
-      updateStatus();
-    }
-    sctx.save(); sctx.filter = state.mesh ? "brightness(0.55)" : "none";
-    sctx.fillStyle = "#000"; sctx.fillRect(0, 0, W, H); sctx.drawImage(raw, 0, 0); sctx.restore();
-    renderDots(tl);
     requestAnimationFrame(frame);
   }
 
   // ---- status line, in plain words -----------------------------------------------
   function updateStatus() {
-    const beats = activeBeats(), tpl = TEMPLATES[state.template], st = $("status");
-    const send = $("btn-send");
+    if (state.busy) return;
+    const beats = activeBeats(), tpl = TEMPLATES[state.template], st = $("status"), send = $("btn-send");
     let problem = "";
     if (!beats.length) problem = "Type at least one line above.";
     else if (tpl.political && !state.payer.trim()) problem = "Fill in \"Paid for by\". Texas requires it on political advertising, and it goes on every frame.";
@@ -547,27 +581,25 @@
         if (peak > 0.35) { problem = "\"" + (b.headline || b.label) + "\" gets too bright (" + Math.round(peak * 100) + "% of the screen lit). Use fewer or shorter words."; break; }
       }
     }
-    if (problem) { st.className = "status warn"; st.textContent = problem; send.disabled = true; return; }
+    if (problem) { st.className = "status warn"; st.textContent = problem; if (state.tab === "show") send.disabled = true; return; }
     let smallest = Infinity, which = "";
     beats.forEach((b) => { const a = artwork(b); if (a.headPx * IN_PER_PX < smallest) { smallest = a.headPx * IN_PER_PX; which = "headline"; } if (a.subPx && a.subPx * IN_PER_PX < smallest) { smallest = a.subPx * IN_PER_PX; which = "second line"; } });
     const footIn = FOOT_PX * 0.72 * IN_PER_PX;
     let text = "Smallest " + which + " is " + smallest.toFixed(0) + " in tall, readable to about " + Math.round(smallest * 10) + " ft.";
     if (tpl.political) text += " Footer " + footIn.toFixed(1) + " in, readable to about " + Math.round(footIn * 10) + " ft.";
-    const total = beats.reduce((a, b) => a + b.seconds, 0);
-    text += " Show is " + total + " s.";
-    st.className = "status ok"; st.textContent = text; send.disabled = false;
+    text += " Show is " + showTotal(beats) + " s.";
+    st.className = "status ok"; st.textContent = text; if (state.tab === "show") send.disabled = false;
   }
-
-  function renderDots(tl) {
+  function renderDots(beats, current) {
     const holder = $("dots");
-    if (holder.children.length !== tl.beats.length) {
+    if (holder.children.length !== beats.length) {
       holder.innerHTML = "";
-      tl.beats.forEach((b, i) => { const d = document.createElement("button"); d.title = b.headline || b.label; d.onclick = () => jumpTo(i); holder.appendChild(d); });
+      beats.forEach((b, i) => { const d = document.createElement("button"); d.title = b.headline || b.label; d.onclick = () => jumpTo(i); holder.appendChild(d); });
     }
-    [...holder.children].forEach((d, i) => d.classList.toggle("on", i === tl.i));
+    [...holder.children].forEach((d, i) => d.classList.toggle("on", i === current));
   }
-  $("btn-prev").onclick = () => { const tl = timeline(); jumpTo((tl.i - 1 + tl.beats.length) % tl.beats.length); };
-  $("btn-next").onclick = () => { const tl = timeline(); jumpTo((tl.i + 1) % tl.beats.length); };
+  $("btn-prev").onclick = () => { const b = activeBeats(); const pos = timelineAt(((performance.now() - clock) / 1000) % showTotal(b), b); jumpTo((pos.i - 1 + b.length) % b.length); };
+  $("btn-next").onclick = () => { const b = activeBeats(); const pos = timelineAt(((performance.now() - clock) / 1000) % showTotal(b), b); jumpTo((pos.i + 1) % b.length); };
   $("mirror").onchange = () => stage.classList.toggle("mirror", $("mirror").checked);
 
   // ---- form --------------------------------------------------------------------
@@ -577,23 +609,23 @@
     tpl.fields.forEach((f) => {
       const row = document.createElement("div"); row.className = "field";
       const lbl = document.createElement("label"); lbl.textContent = f.label; lbl.htmlFor = "f-" + f.key;
-      const inp = document.createElement("input"); inp.type = "text"; inp.id = "f-" + f.key; inp.placeholder = f.placeholder; inp.maxLength = 60;
+      const inp = document.createElement("input"); inp.type = "text"; inp.className = "caps"; inp.id = "f-" + f.key; inp.placeholder = f.placeholder; inp.maxLength = 60;
       inp.value = state.values[state.template][f.key] || "";
-      inp.oninput = () => { state.values[state.template][f.key] = inp.value; artCache.clear(); updateStatus(); renderTune(); };
+      inp.oninput = () => { state.values[state.template][f.key] = inp.value; artCache.clear(); persist(); updateStatus(); renderTune(); };
       row.appendChild(lbl); row.appendChild(inp); holder.appendChild(row);
     });
     $("payer-row").hidden = !tpl.political; $("payer-hint").hidden = !tpl.political;
     if (!state.logo) $("drop").textContent = tpl.dropText;
     state.color = tpl.color; $("g-color").value = tpl.color;
-    $("crumb").textContent = "/ " + tpl.label;
-    document.querySelectorAll(".templates .chip").forEach((c) => c.classList.toggle("on", c.dataset.template === state.template));
     state.accent = tpl.accent; $("g-accent").value = tpl.accent;
-    artCache.clear(); jumpTo(0); updateStatus(); renderTune();
+    document.querySelectorAll(".templates .chip").forEach((c) => c.classList.toggle("on", c.dataset.template === state.template));
+    artCache.clear(); jumpTo(0); persist(); updateStatus(); renderTune();
   }
   document.querySelectorAll(".templates .chip").forEach((c) => { c.onclick = () => { state.template = c.dataset.template; renderFields(); }; });
-  $("payer").oninput = () => { state.payer = $("payer").value; $("payer").classList.toggle("required-missing", !state.payer.trim()); updateStatus(); };
+  $("payer").value = state.payer;
+  $("payer").oninput = () => { state.payer = $("payer").value; $("payer").classList.toggle("required-missing", !state.payer.trim()); persist(); updateStatus(); };
+  $("payer").classList.toggle("required-missing", !state.payer.trim());
 
-  // logo: knock out white, optionally invert first
   function processLogo(img) {
     const c = document.createElement("canvas"); c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height;
     const ctx = c.getContext("2d"); ctx.drawImage(img, 0, 0);
@@ -601,13 +633,14 @@
     for (let i = 0; i < d.length; i += 4) {
       if (state.logoInvert) { d[i] = 255 - d[i]; d[i + 1] = 255 - d[i + 1]; d[i + 2] = 255 - d[i + 2]; }
       const lum = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
-      if (lum < 24) d[i + 3] = 0;                                   // near-black vanishes on the mesh anyway
-      if (d[i] > 240 && d[i + 1] > 240 && d[i + 2] > 240 && !state.logoInvert && state.knockWhite) { d[i + 3] = 0; }
+      if (lum < 24) d[i + 3] = 0;
+      if (d[i] > 240 && d[i + 1] > 240 && d[i + 2] > 240 && !state.logoInvert && state.knockWhite) d[i + 3] = 0;
     }
     ctx.putImageData(id, 0, 0);
     return c;
   }
   let logoImage = null;
+  function refreshLogo() { if (logoImage) { state.logo = processLogo(logoImage); artCache.clear(); const pv = $("drop").querySelector("img"); if (pv) pv.src = state.logo.toDataURL(); } }
   function loadLogo(file) {
     if (!file) return;
     const img = new Image();
@@ -624,10 +657,9 @@
   $("logo").onchange = () => loadLogo($("logo").files[0]);
   $("drop").ondragover = (e) => { e.preventDefault(); };
   $("drop").ondrop = (e) => { e.preventDefault(); loadLogo(e.dataTransfer.files[0]); };
-  $("g-knock").onchange = () => { state.knockWhite = $("g-knock").checked; if (logoImage) { state.logo = processLogo(logoImage); artCache.clear(); const pv = $("drop").querySelector("img"); if (pv) pv.src = state.logo.toDataURL(); } };
-  $("g-invert").onchange = () => { state.logoInvert = $("g-invert").checked; if (logoImage) { state.logo = processLogo(logoImage); artCache.clear(); const pv = $("drop").querySelector("img"); if (pv) pv.src = state.logo.toDataURL(); } };
+  $("g-invert").onchange = () => { state.logoInvert = $("g-invert").checked; refreshLogo(); };
+  $("g-knock").onchange = () => { state.knockWhite = $("g-knock").checked; refreshLogo(); };
 
-  // fine-tune
   function renderTune() {
     const tpl = TEMPLATES[state.template], holder = $("tune-rows"); holder.innerHTML = "";
     tpl.beats.forEach((b, i) => {
@@ -639,38 +671,215 @@
       const eff = document.createElement("select"); Object.keys(EFFECT_NAMES).forEach((k) => { const op = document.createElement("option"); op.value = k; op.textContent = EFFECT_NAMES[k]; eff.appendChild(op); }); eff.value = o.effect || b.effect;
       const sec = document.createElement("input"); sec.type = "number"; sec.min = 3; sec.max = 20; sec.value = o.seconds || b.seconds; sec.title = "Seconds";
       const tr = document.createElement("select"); [["fade", "Fade out"], ["particle_burst", "Particle burst"]].forEach(([v, t]) => { const op = document.createElement("option"); op.value = v; op.textContent = t; tr.appendChild(op); }); tr.value = o.transition || b.transition;
-      const save = () => { state.overrides[state.template][i] = { effect: eff.value, seconds: clamp(Number(sec.value) || b.seconds, 3, 20), transition: tr.value }; jumpTo(i); updateStatus(); };
+      const save = () => { state.overrides[state.template][i] = { effect: eff.value, seconds: clamp(Number(sec.value) || b.seconds, 3, 20), transition: tr.value }; jumpTo(i); persist(); updateStatus(); };
       eff.onchange = save; sec.onchange = save; tr.onchange = save;
       row.appendChild(eff); row.appendChild(sec); row.appendChild(tr); holder.appendChild(row);
     });
   }
   $("g-color").oninput = () => { state.color = $("g-color").value; artCache.clear(); };
   $("g-accent").oninput = () => { state.accent = $("g-accent").value; };
-  $("g-footer").onchange = () => { state.footer = $("g-footer").value; artCache.clear(); updateStatus(); };
+  $("g-footer").value = state.footer;
+  $("g-footer").onchange = () => { state.footer = $("g-footer").value; artCache.clear(); persist(); updateStatus(); };
   $("g-mesh").onchange = () => { state.mesh = $("g-mesh").value === "on"; };
+  $("g-pi").value = state.pi; $("g-pin").value = state.pin;
+  $("g-pi").onchange = () => { state.pi = $("g-pi").value.trim().replace(/\/+$/, "") || "http://balcony.local:8080"; $("g-pi").value = state.pi; persist(); };
+  $("g-pin").onchange = () => { state.pin = $("g-pin").value.trim(); persist(); };
 
-  // send: render then upload, one step (simulated here)
-  $("btn-send").onclick = () => {
-    const beats = activeBeats(), bar = $("progress"), fill = bar.firstElementChild, st = $("status");
-    bar.hidden = false; $("btn-send").disabled = true;
-    let i = 0;
-    const step = () => {
-      if (i < beats.length) { st.className = "status"; st.textContent = "Rendering " + (i + 1) + " of " + beats.length + ": " + (beats[i].headline || beats[i].label); fill.style.width = (100 * (i + 1) / (beats.length + 1)) + "%"; i++; setTimeout(step, 500); }
-      else { st.textContent = "Sending to balcony.local…"; fill.style.width = "100%"; setTimeout(() => { st.className = "status ok"; st.textContent = "Mock-up: the real studio would now have copied the show into the " + state.template + " folder on the Pi."; bar.hidden = true; fill.style.width = "0"; $("btn-send").disabled = false; }, 900); }
+  // ---- MP4 encoding in the browser ---------------------------------------------------
+  async function pickCodec() {
+    console.log("balcony-studio codec check, VideoEncoder:", "VideoEncoder" in window, "Mp4Muxer:", typeof Mp4Muxer);
+    if (!("VideoEncoder" in window)) throw new Error("This browser can't make videos. Use Chrome, Edge or Safari 16.4 or newer.");
+    for (const codec of ["avc1.640028", "avc1.4d0028", "avc1.42001f"]) {
+      const cfg = { codec, width: W, height: H, bitrate: 8000000, framerate: FPS, avc: { format: "avc" }, latencyMode: "quality" };
+      const s = await VideoEncoder.isConfigSupported(cfg);
+      if (s.supported) return cfg;
+    }
+    throw new Error("This browser can't make H.264 video. Use Chrome or Edge.");
+  }
+  async function encodeFrames(totalFrames, drawFrame, onProgress) {
+    const cfg = await pickCodec();
+    const muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: "avc", width: W, height: H }, fastStart: "in-memory", firstTimestampBehavior: "offset" });
+    let failed = null;
+    const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { failed = e; } });
+    encoder.configure(cfg);
+    for (let i = 0; i < totalFrames; i++) {
+      if (failed) throw failed;
+      await drawFrame(i);
+      const vf = new VideoFrame(raw, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+      encoder.encode(vf, { keyFrame: i % 60 === 0 });
+      vf.close();
+      while (encoder.encodeQueueSize > 12) await sleep(4);
+      if (i % 5 === 0) { onProgress(i / totalFrames); await sleep(0); }
+      if (i % 150 === 0) console.log("balcony-studio frame", i, "of", totalFrames);
+    }
+    await encoder.flush();
+    encoder.close();
+    muxer.finalize();
+    return new Blob([muxer.target.buffer], { type: "video/mp4" });
+  }
+
+  async function renderShow(onProgress) {
+    const beats = activeBeats();
+    const total = showTotal(beats), frames = Math.round(total * FPS);
+    return encodeFrames(frames, (i) => { drawShowFrame(rctx, i / FPS, beats); }, onProgress);
+  }
+
+  // ---- send to the Pi -------------------------------------------------------------
+  function sendToPi(blob, filename, playlist, onProgress) {
+    return new Promise((resolve, reject) => {
+      const form = new FormData();
+      form.append("playlist", playlist); form.append("replace", "1"); form.append("play", "1");
+      form.append("file", blob, filename);
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", state.pi + "/api/upload");
+      if (state.pin) xhr.setRequestHeader("X-Pin", state.pin);
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+      xhr.onload = () => {
+        let data = {}; try { data = JSON.parse(xhr.responseText); } catch (e) {}
+        if (xhr.status === 401) reject(new Error("The Pi wants the PIN. Put it under Fine-tune."));
+        else if (xhr.status >= 200 && xhr.status < 300 && data.ok) resolve(data);
+        else reject(new Error(data.error || "The Pi didn't accept the file."));
+      };
+      xhr.onerror = () => reject(new Error("Can't reach the Pi at " + state.pi + ". Is it on, and is this laptop on the same Wi-Fi?"));
+      xhr.send(form);
+    });
+  }
+  function setProgress(barId, frac) { const bar = $(barId); bar.hidden = false; bar.firstElementChild.style.width = Math.round(frac * 100) + "%"; }
+  function say(id, text, cls) { const st = $(id); st.className = "status" + (cls ? " " + cls : ""); st.textContent = text; }
+
+  async function sendShow() {
+    const beats = activeBeats(), total = showTotal(beats);
+    state.busy = true; $("btn-send").disabled = true;
+    try {
+      say("status", "Rendering " + total + " seconds of video…");
+      const blob = await renderShow((f) => { setProgress("progress", f * 0.85); say("status", "Rendering… " + Math.round(f * 100) + "%"); });
+      console.log("balcony-studio rendered", blob.size, "bytes");
+      say("status", "Sending " + Math.round(blob.size / 1e6 * 10) / 10 + " MB to the Pi…");
+      const name = TEMPLATES[state.template].label + " show.mp4";
+      const data = await sendToPi(blob, name, state.template, (f) => setProgress("progress", 0.85 + 0.15 * f));
+      setProgress("progress", 1);
+      say("status", data.playing ? "Sent. The Pi is playing it now." : "Sent to the Pi's " + TEMPLATES[state.template].label + " folder.", "ok");
+      console.log("balcony-studio sent", JSON.stringify(data));
+    } catch (e) {
+      say("status", e.message, "warn");
+      console.log("balcony-studio failed", e.message);
+    } finally {
+      state.busy = false; $("btn-send").disabled = false; setTimeout(() => { $("progress").hidden = true; }, 1500);
+      clock = performance.now();
+    }
+  }
+
+  // ---- send a video made elsewhere: convert here, then send ----------------------------
+  let videoFile = null;
+  const vprev = $("vprev");
+  function loadVideo(file) {
+    if (!file) return;
+    videoFile = file;
+    vprev.src = URL.createObjectURL(file);
+    $("vprev-wrap").hidden = false;
+    $("vdrop").classList.add("has"); $("vdrop").textContent = file.name + " (click to change)";
+    vprev.onloadedmetadata = () => {
+      const dur = vprev.duration;
+      say("vstatus", file.name + ": " + vprev.videoWidth + "x" + vprev.videoHeight + ", " + Math.round(dur) + " s. Converting will take about " + Math.max(10, Math.round(dur * 1.5)) + " s. Press Send to balcony.");
+      $("btn-send").disabled = false;
     };
-    step();
-  };
+  }
+  $("vdrop").onclick = () => $("vfile").click();
+  $("vfile").onchange = () => loadVideo($("vfile").files[0]);
+  $("vdrop").ondragover = (e) => { e.preventDefault(); };
+  $("vdrop").ondrop = (e) => { e.preventDefault(); loadVideo(e.dataTransfer.files[0]); };
+  $("v-mirror").onchange = () => vprev.classList.toggle("mirror", $("v-mirror").checked);
+
+  async function convertVideo(file, opts, onProgress) {
+    const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.preload = "auto";
+    v.src = URL.createObjectURL(file);
+    await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = () => rej(new Error("This browser can't read that video. Try an MP4 or MOV.")); });
+    const dur = Math.min(v.duration, 600);
+    const frames = Math.max(1, Math.floor(dur * FPS));
+    const sc = Math.min(W / v.videoWidth, H / v.videoHeight);
+    const dw = Math.round(v.videoWidth * sc), dh = Math.round(v.videoHeight * sc), dx = Math.round((W - dw) / 2), dy = Math.round((H - dh) / 2);
+    const seekTo = (t) => new Promise((res) => { const h = () => { v.removeEventListener("seeked", h); res(); }; v.addEventListener("seeked", h); v.currentTime = Math.min(t, Math.max(0, v.duration - 0.001)); });
+    const blend = opts.loop ? Math.min(FPS, Math.floor(frames / 4)) : 0;
+    const head = [];
+    let peak = 0;
+    const grab = async (i) => {
+      await seekTo(i / FPS);
+      rctx.fillStyle = "#000"; rctx.fillRect(0, 0, W, H);
+      rctx.drawImage(v, dx, dy, dw, dh);
+      if (opts.black || opts.dim) {
+        const id = rctx.getImageData(dx, dy, dw, dh), d = id.data;
+        let sum = 0;
+        for (let p = 0; p < d.length; p += 4) {
+          let r = d[p], g = d[p + 1], b = d[p + 2];
+          const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          if (opts.black && lum < 40) { const k = lum < 22 ? 0 : (lum - 22) / 18; r *= k; g *= k; b *= k; }
+          sum += 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          d[p] = r; d[p + 1] = g; d[p + 2] = b;
+        }
+        let mean = sum / (d.length / 4) / 255 * (dw * dh) / (W * H);
+        if (opts.dim && mean > 0.35) { const k = 0.35 / mean; for (let p = 0; p < d.length; p += 4) { d[p] *= k; d[p + 1] *= k; d[p + 2] *= k; } mean = 0.35; }
+        peak = Math.max(peak, mean);
+        rctx.putImageData(id, dx, dy);
+      }
+    };
+    for (let i = 0; i < blend; i++) { await grab(i); head.push(rctx.getImageData(0, 0, W, H)); }
+    const blob = await encodeFrames(frames, async (i) => {
+      await grab(i);
+      if (blend && i >= frames - blend) {
+        const k = i - (frames - blend), a = (k + 1) / (blend + 1);
+        const cur = rctx.getImageData(0, 0, W, H), hd = head[k].data, cd = cur.data;
+        for (let p = 0; p < cd.length; p += 4) { cd[p] = cd[p] * (1 - a) + hd[p] * a; cd[p + 1] = cd[p + 1] * (1 - a) + hd[p + 1] * a; cd[p + 2] = cd[p + 2] * (1 - a) + hd[p + 2] * a; }
+        rctx.putImageData(cur, 0, 0);
+      }
+    }, onProgress);
+    URL.revokeObjectURL(v.src);
+    return { blob, peak, seconds: dur };
+  }
+
+  async function sendVideo() {
+    if (!videoFile) { say("vstatus", "Drop a video first.", "warn"); return; }
+    state.busy = true; $("btn-send").disabled = true;
+    try {
+      const opts = { loop: $("v-loop").checked, black: $("v-black").checked, dim: $("v-dim").checked };
+      say("vstatus", "Converting…");
+      const out = await convertVideo(videoFile, opts, (f) => { setProgress("vprogress", f * 0.85); say("vstatus", "Converting… " + Math.round(f * 100) + "%"); });
+      const name = videoFile.name.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9 _()\-]+/g, " ").trim().slice(0, 60) + ".mp4";
+      say("vstatus", "Sending " + Math.round(out.blob.size / 1e6 * 10) / 10 + " MB to the Pi…");
+      const data = await sendToPi(out.blob, name, $("vplaylist").value, (f) => setProgress("vprogress", 0.85 + 0.15 * f));
+      setProgress("vprogress", 1);
+      const note = out.peak > 0.35 ? " Some frames were brighter than the mesh likes and were toned down." : "";
+      say("vstatus", (data.playing ? "Sent. The Pi is playing it now." : "Sent to the Pi.") + note, "ok");
+    } catch (e) {
+      say("vstatus", e.message, "warn");
+    } finally {
+      state.busy = false; $("btn-send").disabled = false; setTimeout(() => { $("vprogress").hidden = true; }, 1500);
+    }
+  }
+
+  // ---- tabs and the one button --------------------------------------------------------
+  function setTab(tab) {
+    state.tab = tab;
+    $("tab-show").classList.toggle("on", tab === "show"); $("tab-video").classList.toggle("on", tab === "video");
+    ["pane-show-preview", "pane-show-form", "tune"].forEach((id) => { $(id).hidden = tab !== "show"; });
+    $("pane-video").hidden = tab !== "video";
+    if (tab === "show") { clock = performance.now(); updateStatus(); } else { $("btn-send").disabled = !videoFile; }
+  }
+  $("tab-show").onclick = () => setTab("show");
+  $("tab-video").onclick = () => setTab("video");
+  $("btn-send").onclick = () => { if (state.busy) return; if (state.tab === "show") sendShow(); else sendVideo(); };
 
   // ---- go --------------------------------------------------------------------
   const hash = location.hash || "";
   const tm = /template=(\w+)/.exec(hash); if (tm && TEMPLATES[tm[1]]) state.template = tm[1];
-  const pm = /payer=([^,&]+)/.exec(hash); if (pm) { state.payer = decodeURIComponent(pm[1]); $("payer").value = state.payer; }
-  $("payer").classList.toggle("required-missing", !state.payer.trim());
+  const pm = /payer=([^,&]+)/.exec(hash); if (pm) { state.payer = decodeURIComponent(pm[1]); $("payer").value = state.payer; $("payer").classList.remove("required-missing"); }
+  const pim = /pi=([^,&]+)/.exec(hash); if (pim) { state.pi = decodeURIComponent(pim[1]); $("g-pi").value = state.pi; }
   document.fonts.ready.then(() => { artCache.clear(); updateStatus(); });
   renderFields();
   const bm = /beat=(\d+)/.exec(hash); const tsk = /t=([\d.]+)/.exec(hash);
   if (bm) jumpTo(Number(bm[1]) - 1);
   if (tsk) clock -= Number(tsk[1]) * 1000;
+  if (/tab=video/.test(hash)) setTab("video");
+  if (/autosend=1/.test(hash)) document.fonts.ready.then(() => setTimeout(sendShow, 800));      // for automated checks
   requestAnimationFrame(frame);
 })();
 </script>

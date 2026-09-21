@@ -33,7 +33,7 @@ import urllib.request
 from collections import deque
 from datetime import date, datetime, timedelta
 
-from flask import Flask, jsonify, render_template, request, send_file
+from flask import Flask, jsonify, render_template, request, send_file, send_from_directory
 
 import library
 import solar
@@ -1295,6 +1295,18 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
     @app.route("/")
     def index():
         return render_template("index.html")
+
+    # The laptop studio is served from the Pi too, so any browser on the
+    # Wi-Fi can open http://balcony.local:8080/studio/ with nothing to install.
+    studio_dir = os.path.join(BASE_DIR, "tools", "studio")
+
+    @app.route("/studio/")
+    def studio_index():
+        return send_from_directory(os.path.join(studio_dir, "slides"), "index.html")
+
+    @app.route("/studio/<path:name>")
+    def studio_file(name):
+        return send_from_directory(studio_dir, name)
 
     def problems():
         out = []
