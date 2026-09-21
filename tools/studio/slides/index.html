@@ -92,9 +92,9 @@
     <div id="fields"></div>
     <div class="hint">Leave a line blank to skip it. Add a smaller second line with a bar, like <b>VOTE NOV 3 | Early voting Oct 19</b>.</div>
     <div id="campaign-extras">
-      <div class="field"><label for="payer">Paid for by</label><input type="text" id="payer" placeholder="YOUR NAME, OR THE COMMITTEE'S" maxlength="80"></div>
-      <div class="hint">Required on political advertising in Texas. It goes on every frame.</div>
-      <div class="drop" id="drop">Drop the logo PNG here, or click to choose. White parts vanish on the mesh; dark logos get inverted.</div>
+      <div class="field" id="payer-row"><label for="payer">Paid for by</label><input type="text" id="payer" placeholder="YOUR NAME, OR THE COMMITTEE'S" maxlength="80"></div>
+      <div class="hint" id="payer-hint">Required on political advertising in Texas. It goes on every frame.</div>
+      <div class="drop" id="drop">Drop the campaign logo PNG here, or click to choose.</div>
       <input type="file" id="logo" accept="image/png,image/svg+xml,image/jpeg" hidden>
     </div>
   </section>
@@ -108,8 +108,9 @@
       <label>Text colour <input type="color" id="g-color" value="#ffffff"></label>
       <label>Accent <input type="color" id="g-accent" value="#f2a33a"></label>
       <label>Footer <select id="g-footer"><option value="top">Top (railing may hide the bottom)</option><option value="bottom">Bottom</option></select></label>
-      <label>Mesh look <select id="g-mesh"><option value="on">On (what the street sees)</option><option value="off">Off</option></select></label>
-      <label class="check" style="margin-top:22px"><input type="checkbox" id="g-invert"> Invert the logo (for dark logos)</label>
+      <label>Preview <select id="g-mesh"><option value="off">Bright, as rendered</option><option value="on">Dimmer, roughly as the street sees it</option></select></label>
+      <label class="check" style="margin-top:22px"><input type="checkbox" id="g-invert"> Invert the artwork (for dark-on-white logos)</label>
+      <label class="check" style="margin-top:22px"><input type="checkbox" id="g-knock" checked> Make white backgrounds transparent</label>
     </div>
   </details>
 </main>
@@ -126,7 +127,8 @@
   // ---- templates ---------------------------------------------------------
   const TEMPLATES = {
     campaign: {
-      label: "Campaign", political: true, accent: "#f2a33a", background: null,
+      label: "Campaign", political: true, accent: "#f2a33a", color: "#ffffff", background: null, hero: null,
+      dropText: "Drop the campaign logo PNG here, or click to choose. It replaces the name on the first and last beats. White on black works best.",
       fields: [
         { key: "name", label: "Name", placeholder: "JANE DOE" },
         { key: "office", label: "Office", placeholder: "FOR CITY COUNCIL" },
@@ -144,7 +146,8 @@
       ],
     },
     halloween: {
-      label: "Halloween", political: false, accent: "#ff8a1f", background: "embers",
+      label: "Halloween", political: false, accent: "#ff8a1f", color: "#f3e6c8", background: "embers", hero: "pumpkin",
+      dropText: "The animated pumpkin is built in. Drop your own artwork PNG here to use that instead.",
       fields: [
         { key: "greeting", label: "Greeting", placeholder: "HAPPY HALLOWEEN" },
         { key: "message", label: "Message", placeholder: "TRICK OR TREAT | 6 to 9 pm" },
@@ -157,7 +160,8 @@
       ],
     },
     holiday: {
-      label: "Holiday", political: false, accent: "#9fd3ff", background: "snow",
+      label: "Holiday", political: false, accent: "#9fd3ff", color: "#ffffff", background: "snow", hero: null,
+      dropText: "Drop artwork PNG here (a wreath, a star, a snowman) to show above the words.",
       fields: [
         { key: "greeting", label: "Greeting", placeholder: "HAPPY HOLIDAYS" },
         { key: "message", label: "Message", placeholder: "PEACE ON EARTH" },
@@ -179,8 +183,8 @@
     overrides: { campaign: {}, halloween: {}, holiday: {} },
     payer: "",
     logo: null,                 // processed canvas
-    logoInvert: false,
-    color: "#ffffff", accent: "#f2a33a", footer: "top", mesh: true,
+    logoInvert: false, knockWhite: true,
+    color: "#ffffff", accent: "#f2a33a", footer: "top", mesh: false,
   };
   // sensible starting words so the preview is not empty
   state.values.campaign = { name: "JANE DOE", office: "FOR CITY COUNCIL", message: "SAFER STREETS", ask: "VOTE NOV 3 | Early voting Oct 19", website: "JANEDOE.ORG" };
@@ -201,7 +205,8 @@
       if (!raw && !useLogo) return;
       const [head, sub] = raw.split("|").map((s) => (s || "").trim());
       const o = state.overrides[state.template][i] || {};
-      out.push({ index: i, headline: (head || "").toUpperCase(), subline: sub || "", logo: useLogo ? state.logo : null,
+      const hero = t.political ? null : (state.logo ? { image: state.logo } : (t.hero ? { kind: t.hero } : null));
+      out.push({ index: i, headline: (head || "").toUpperCase(), subline: sub || "", logo: useLogo ? state.logo : null, hero: hero,
         effect: o.effect || b.effect, seconds: o.seconds || b.seconds, transition: o.transition || b.transition,
         political: t.political, field: b.field, label: t.fields.find((f) => f.key === b.field).label });
     });
@@ -222,11 +227,13 @@
     return size;
   }
   function artwork(beat) {
-    const key = JSON.stringify([beat.headline, beat.subline, !!beat.logo, state.color, state.footer, state.logoInvert, beat.political]);
+    const key = JSON.stringify([beat.headline, beat.subline, !!beat.logo, !!beat.hero, state.color, state.footer, state.logoInvert, beat.political]);
     if (artCache.has(key)) return artCache.get(key);
     const c = document.createElement("canvas"); c.width = W; c.height = H;
     const ctx = c.getContext("2d");
-    const box = contentBox();
+    const full = contentBox();
+    // with a hero graphic above, the words take the lower 42% of the space
+    const box = beat.hero ? { top: full.top + full.height * 0.58, bottom: full.bottom, height: full.height * 0.42 } : full;
     const info = { canvas: c, headPx: 0, subPx: 0, subFits: true };
     if (beat.logo) {
       const maxW = W * 0.72, maxH = box.height * 0.6;
@@ -235,7 +242,7 @@
       ctx.drawImage(beat.logo, (W - w) / 2, box.top + (box.height - h) / 2, w, h);
       info.headPx = h * 0.6;
     } else {
-      const headPx = fitFont(ctx, beat.headline, "Anton, Impact, 'Arial Narrow', sans-serif", "400", W * 0.84, 260, 72);
+      const headPx = fitFont(ctx, beat.headline, "Anton, Impact, 'Arial Narrow', sans-serif", "400", W * 0.84, beat.hero ? 190 : 260, 72);
       let subPx = 0;
       if (beat.subline) {
         subPx = fitFont(ctx, beat.subline, "Inter, Helvetica, Arial, sans-serif", "700", W * 0.84, Math.max(SUB_MIN, Math.round(headPx * 0.42)), SUB_MIN);
@@ -277,8 +284,7 @@
     if (clip) { ctx.beginPath(); ctx.rect(clip.x, 0, clip.w, H); ctx.clip(); }
     const box = contentBox(), cy = box.top + box.height / 2;
     ctx.translate(W / 2, cy); ctx.scale(scale || 1, scale || 1); ctx.translate(-W / 2, -cy);
-    ctx.shadowColor = state.color; ctx.shadowBlur = glow == null ? 14 : glow;   // tight, bright glow
-    ctx.drawImage(art.canvas, 0, 0);
+    ctx.shadowColor = state.color; ctx.shadowBlur = glow == null ? 6 : Math.min(glow, 8);   // crisp; a hint of glow at most
     ctx.drawImage(art.canvas, 0, 0);
     ctx.restore();
   }
@@ -314,15 +320,17 @@
     },
     light_sweep(ctx, beat, art, e) {
       const a = Math.min(e.ain, e.aout);
-      drawArt(ctx, art, a * 0.8, 1, 8);
+      drawArt(ctx, art, a * 0.85, 1, 4);
+      // the sweep is drawn on a transparent layer so it only lights the letters
       const x = -300 + (W + 600) * ease(clamp(e.t / (e.dur - e.f), 0, 1));
-      ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = a;
-      ctx.beginPath(); ctx.rect(x - 160, 0, 320, H); ctx.clip();
-      const g = ctx.createLinearGradient(x - 160, 0, x + 160, 0);
-      g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255,0.35)"); g.addColorStop(1, "rgba(255,255,255,0)");
-      drawArt(ctx, art, 1, 1, 22);
-      ctx.fillStyle = g; ctx.globalCompositeOperation = "source-atop"; ctx.fillRect(x - 160, 0, 320, H);
-      ctx.restore();
+      const lc = layer(), l = lc.getContext("2d");
+      l.clearRect(0, 0, W, H);
+      drawArt(l, art, 1, 1, 0);
+      l.save(); l.globalCompositeOperation = "source-in";
+      const g = l.createLinearGradient(x - 160, 0, x + 160, 0);
+      g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255,0.9)"); g.addColorStop(1, "rgba(255,255,255,0)");
+      l.fillStyle = g; l.fillRect(0, 0, W, H); l.restore();
+      ctx.save(); ctx.globalAlpha = a; ctx.globalCompositeOperation = "lighter"; ctx.drawImage(lc, 0, 0); ctx.restore();
     },
     reveal_behind(ctx, beat, art, e) {
       const open = ease(clamp(e.t / 1.5, 0, 1));
@@ -365,6 +373,8 @@
     },
   };
   function t2p(t, from, to) { return (t - from) / (to - from); }
+  let layerCanvas = null;
+  function layer() { if (!layerCanvas) { layerCanvas = document.createElement("canvas"); layerCanvas.width = W; layerCanvas.height = H; } return layerCanvas; }
 
   // particle burst: the words fly apart during the fade-out instead of fading
   function burst(ctx, art, e) {
@@ -394,6 +404,64 @@
       ctx.globalAlpha = alpha; ctx.fillRect(x, y, size, size);
     }
     ctx.restore();
+  }
+
+  // ---- hero graphics -----------------------------------------------------------
+  function heroBox() {
+    const full = contentBox();
+    return { x: W / 2, top: full.top, height: full.height * 0.56 };
+  }
+  function drawHero(ctx, hero, time, alpha) {
+    if (!hero || alpha <= 0) return;
+    const hb = heroBox();
+    const bob = Math.sin(time * 2 * Math.PI / 3.5) * 10;
+    const cy = hb.top + hb.height / 2 + bob;
+    ctx.save(); ctx.globalAlpha = clamp(alpha, 0, 1); ctx.shadowBlur = 0;
+    if (hero.image) {
+      const maxW = W * 0.6, maxH = hb.height * 0.92;
+      const sc = Math.min(maxW / hero.image.width, maxH / hero.image.height);
+      const w = hero.image.width * sc, h = hero.image.height * sc;
+      ctx.translate(hb.x, cy); ctx.rotate(Math.sin(time * 2 * Math.PI / 7) * 0.02);
+      ctx.drawImage(hero.image, -w / 2, -h / 2, w, h);
+    } else if (hero.kind === "pumpkin") {
+      const sc = hb.height / 420;
+      ctx.translate(hb.x, cy); ctx.rotate(Math.sin(time * 2 * Math.PI / 6) * 0.03); ctx.scale(sc, sc);
+      drawPumpkin(ctx, time);
+    }
+    ctx.restore();
+  }
+  function drawPumpkin(ctx, time) {
+    // candle flicker: a few sines plus a little jitter, never below 60%
+    const flick = 0.6 + 0.4 * clamp(0.5 + 0.25 * Math.sin(time * 11) + 0.15 * Math.sin(time * 7.3 + 1) + 0.1 * Math.sin(time * 23.7), 0, 1);
+    // stem and leaf
+    ctx.fillStyle = "#3f7a2a"; ctx.strokeStyle = "#2c5a1c"; ctx.lineWidth = 6; ctx.lineJoin = "round";
+    ctx.beginPath(); ctx.moveTo(-26, -150); ctx.quadraticCurveTo(-30, -200, -6, -222); ctx.quadraticCurveTo(24, -230, 20, -200);
+    ctx.quadraticCurveTo(8, -180, 14, -150); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#5aa03a"; ctx.beginPath(); ctx.ellipse(-70, -178, 44, 18, -0.5, 0, Math.PI * 2); ctx.fill();
+    // body: five lobes, back to front
+    const lobes = [[-118, 92, 118], [118, 92, 118], [-64, 110, 136], [64, 110, 136], [0, 118, 148]];
+    lobes.forEach(([x, rx, ry]) => {
+      const g = ctx.createRadialGradient(x - rx * 0.3, -40, 10, x, 0, ry * 1.2);
+      g.addColorStop(0, "#ffa63a"); g.addColorStop(0.6, "#f07a1e"); g.addColorStop(1, "#b64d10");
+      ctx.fillStyle = g; ctx.strokeStyle = "#8f3b0a"; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.ellipse(x, 0, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    });
+    // the light inside, showing through the face
+    const light = ctx.createRadialGradient(0, 30, 10, 0, 30, 170);
+    light.addColorStop(0, "rgba(255,240,150," + flick + ")"); light.addColorStop(0.5, "rgba(255,170,40," + (0.9 * flick) + ")"); light.addColorStop(1, "rgba(120,40,0," + (0.8 * flick) + ")");
+    ctx.fillStyle = light;
+    const face = () => {
+      ctx.beginPath(); ctx.moveTo(-100, -30); ctx.lineTo(-40, -30); ctx.lineTo(-70, -90); ctx.closePath();           // left eye
+      ctx.moveTo(40, -30); ctx.lineTo(100, -30); ctx.lineTo(70, -90); ctx.closePath();                                 // right eye
+      ctx.moveTo(-16, 20); ctx.lineTo(16, 20); ctx.lineTo(0, -8); ctx.closePath();                                     // nose
+      ctx.moveTo(-110, 50); ctx.quadraticCurveTo(0, 160, 110, 50);                                                     // grin
+      ctx.lineTo(86, 62); ctx.lineTo(70, 98); ctx.lineTo(52, 70); ctx.lineTo(20, 104); ctx.lineTo(0, 72);
+      ctx.lineTo(-20, 104); ctx.lineTo(-52, 70); ctx.lineTo(-70, 98); ctx.lineTo(-86, 62); ctx.closePath();
+    };
+    face(); ctx.fill();
+    // a little glow spilling out of the face
+    ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.35 * flick; ctx.shadowColor = "#ffb347"; ctx.shadowBlur = 30;
+    ctx.fillStyle = "rgba(255,180,60,0.6)"; face(); ctx.fill(); ctx.restore();
   }
 
   function drawFooter(ctx) {
@@ -440,6 +508,7 @@
     if (tpl.background) background(rctx, tpl.background, tl.t);
     if (tl.beats.length) {
       const beat = tl.beats[tl.i], art = artwork(beat), e = envelope(tl.local, beat.seconds);
+      if (beat.hero) drawHero(rctx, beat.hero, tl.t, 1);
       if (beat.transition === "particle_burst" && e.outP > 0) { burst(rctx, art, e); }
       else effects[beat.effect](rctx, beat, art, e);
       if (beat.political) drawFooter(rctx);
@@ -455,7 +524,7 @@
       peaks[key] = Math.max(peaks[key] || 0, mean);
       updateStatus();
     }
-    sctx.save(); sctx.filter = state.mesh ? "brightness(0.5) blur(1.5px)" : "none";
+    sctx.save(); sctx.filter = state.mesh ? "brightness(0.55)" : "none";
     sctx.fillStyle = "#000"; sctx.fillRect(0, 0, W, H); sctx.drawImage(raw, 0, 0); sctx.restore();
     renderDots(tl);
     requestAnimationFrame(frame);
@@ -472,7 +541,7 @@
       for (const b of beats) {
         const art = artwork(b);
         const headIn = art.headPx * IN_PER_PX;
-        if (!b.logo && headIn < 6) { problem = "\"" + b.headline + "\" comes out " + headIn.toFixed(0) + " in tall, too small for the sidewalk. Shorten it."; break; }
+        if (!b.logo && b.headline && headIn < 6) { problem = "\"" + b.headline + "\" comes out " + headIn.toFixed(0) + " in tall, too small for the sidewalk. Shorten it."; break; }
         if (b.subline && !art.subFits) { problem = "The second line \"" + b.subline + "\" is too long. Shorten it."; break; }
         const peak = peaks[state.template + ":" + b.index] || 0;
         if (peak > 0.35) { problem = "\"" + (b.headline || b.label) + "\" gets too bright (" + Math.round(peak * 100) + "% of the screen lit). Use fewer or shorter words."; break; }
@@ -513,7 +582,9 @@
       inp.oninput = () => { state.values[state.template][f.key] = inp.value; artCache.clear(); updateStatus(); renderTune(); };
       row.appendChild(lbl); row.appendChild(inp); holder.appendChild(row);
     });
-    $("campaign-extras").hidden = !tpl.political;
+    $("payer-row").hidden = !tpl.political; $("payer-hint").hidden = !tpl.political;
+    if (!state.logo) $("drop").textContent = tpl.dropText;
+    state.color = tpl.color; $("g-color").value = tpl.color;
     $("crumb").textContent = "/ " + tpl.label;
     document.querySelectorAll(".templates .chip").forEach((c) => c.classList.toggle("on", c.dataset.template === state.template));
     state.accent = tpl.accent; $("g-accent").value = tpl.accent;
@@ -530,8 +601,8 @@
     for (let i = 0; i < d.length; i += 4) {
       if (state.logoInvert) { d[i] = 255 - d[i]; d[i + 1] = 255 - d[i + 1]; d[i + 2] = 255 - d[i + 2]; }
       const lum = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
-      if (lum < 40) d[i + 3] = 0;                                   // near-black vanishes on the mesh anyway
-      if (d[i] > 235 && d[i + 1] > 235 && d[i + 2] > 235 && !state.logoInvert) { d[i + 3] = 0; }   // white background
+      if (lum < 24) d[i + 3] = 0;                                   // near-black vanishes on the mesh anyway
+      if (d[i] > 240 && d[i + 1] > 240 && d[i + 2] > 240 && !state.logoInvert && state.knockWhite) { d[i + 3] = 0; }
     }
     ctx.putImageData(id, 0, 0);
     return c;
@@ -553,6 +624,7 @@
   $("logo").onchange = () => loadLogo($("logo").files[0]);
   $("drop").ondragover = (e) => { e.preventDefault(); };
   $("drop").ondrop = (e) => { e.preventDefault(); loadLogo(e.dataTransfer.files[0]); };
+  $("g-knock").onchange = () => { state.knockWhite = $("g-knock").checked; if (logoImage) { state.logo = processLogo(logoImage); artCache.clear(); const pv = $("drop").querySelector("img"); if (pv) pv.src = state.logo.toDataURL(); } };
   $("g-invert").onchange = () => { state.logoInvert = $("g-invert").checked; if (logoImage) { state.logo = processLogo(logoImage); artCache.clear(); const pv = $("drop").querySelector("img"); if (pv) pv.src = state.logo.toDataURL(); } };
 
   // fine-tune
