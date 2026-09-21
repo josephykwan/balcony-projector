@@ -60,6 +60,7 @@ for grp in video render audio input; do
 done
 
 echo "==> Making media folders in $RUN_HOME/media"
+install -d -o "$RUN_USER" -g "$RUN_USER" "$RUN_HOME/media"
 for folder in halloween campaign movies; do
   install -d -o "$RUN_USER" -g "$RUN_USER" "$RUN_HOME/media/$folder"
 done

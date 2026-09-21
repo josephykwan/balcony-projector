@@ -343,7 +343,14 @@ class Library:
         from the studio) instead of getting a "(2)" name."""
         spec = self.spec(name)
         if spec is None:
-            raise LibraryError("Pick which playlist the file belongs to.")
+            # a new playlist name (the studio's Holiday template, say): make its folder
+            if not re.fullmatch(r"[a-z0-9_-]{1,32}", name or ""):
+                raise LibraryError("Pick which playlist the file belongs to.")
+            try:
+                os.makedirs(self.folder(name), exist_ok=True)
+            except OSError as exc:
+                raise LibraryError("Couldn't make a folder for '%s': %s" % (name, exc))
+            spec = self.spec(name)
         base = safe_filename(filename)
         ext = os.path.splitext(base)[1].lower()
         if not base or ext not in MEDIA_EXT:
