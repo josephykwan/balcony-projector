@@ -302,7 +302,8 @@
   function meshify() {
     // what the gray mesh does: dark pixels vanish, brights float. Approximate with a dark gray veil that
     // only bright areas punch through.
-    ctx.save(); ctx.globalCompositeOperation = "multiply"; ctx.fillStyle = "#dcdcdc"; ctx.fillRect(0, 0, W, H); ctx.restore();
+    ctx.save(); ctx.shadowBlur = 0; ctx.shadowColor = "transparent"; ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "multiply"; ctx.fillStyle = "#dcdcdc"; ctx.fillRect(0, 0, W, H); ctx.restore();
   }
   function updateTimeline(p) {
     const cells = $("timeline").children;
@@ -374,6 +375,10 @@
   $("btn-render").onclick = () => { $("status").textContent = "In the real studio this renders every changed beat to MP4 with ffmpeg and stitches the show into one seamless loop."; };
   $("btn-send").onclick = () => { $("status").textContent = "In the real studio this copies the rendered show to balcony.local, into the campaign folder, over Wi-Fi."; };
 
+  const skip = /t=(\d+)/.exec(location.hash || "");
+  if (skip) t0 = performance.now() - Number(skip[1]) * 1000;
+  const beat = /beat=(\d+)/.exec(location.hash || "");
+  if (beat) current = Math.max(0, Math.min(show.length - 1, Number(beat[1]) - 1));
   renderBeats(); loadEditor(); requestAnimationFrame(frame);
 })();
 </script>
