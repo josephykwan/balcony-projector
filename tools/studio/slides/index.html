@@ -3,383 +3,603 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Balcony Studio: Slides</title>
+<title>Balcony Studio</title>
 <style>
-  :root { --bg:#0f1115; --card:#181b22; --card-2:#20242d; --line:#2b303b; --text:#e8e9ee; --muted:#9aa0ad; --accent:#f2a33a; --accent-text:#1a1206; }
+  @font-face { font-family: "Anton"; src: url("../fonts/Anton-Regular.ttf") format("truetype"); font-display: swap; }
+  @font-face { font-family: "Inter"; src: url("../fonts/Inter-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
+  :root { --bg:#0f1115; --card:#181b22; --card-2:#20242d; --line:#2b303b; --text:#e8e9ee; --muted:#9aa0ad; --accent:#f2a33a; --accent-text:#1a1206; --warn:#f5d08a; --warn-bg:#3b2d14; --ok:#9be39b; }
   * { box-sizing: border-box; }
-  html, body { margin:0; background:var(--bg); color:var(--text); font:15px/1.4 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
-  header { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--line); }
-  h1 { font-size:18px; margin:0; font-weight:650; }
+  html, body { margin:0; background:var(--bg); color:var(--text); font:16px/1.45 "Inter", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header { position: sticky; top: 0; z-index: 3; display:flex; align-items:center; justify-content:space-between; gap: 12px; padding:12px 20px; background: rgba(15,17,21,.92); backdrop-filter: blur(8px); border-bottom:1px solid var(--line); }
+  h1 { font-size:18px; margin:0; font-weight:700; }
   h1 span { color:var(--muted); font-weight:400; }
-  .top-actions { display:flex; gap:10px; }
-  main { display:grid; grid-template-columns: 300px 1fr 340px; gap:16px; padding:16px 20px; min-height: calc(100vh - 60px); }
-  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
-  .card { background:var(--card); border-radius:14px; padding:14px; }
-  .label { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:8px; }
-  button { appearance:none; border:0; border-radius:10px; min-height:40px; padding:8px 14px; font:inherit; font-weight:600; color:var(--text); background:var(--card-2); cursor:pointer; }
+  main { max-width: 860px; margin: 0 auto; padding: 16px 20px 60px; display: grid; gap: 16px; }
+  .card { background:var(--card); border-radius:14px; padding:16px; }
+  button { appearance:none; border:0; border-radius:10px; min-height:42px; padding:8px 16px; font:inherit; font-weight:600; color:var(--text); background:var(--card-2); cursor:pointer; }
+  button:disabled { opacity:.45; cursor:default; }
   button.primary { background:var(--accent); color:var(--accent-text); }
-  button.small { min-height:32px; padding:4px 10px; font-size:13px; font-weight:500; }
-  .beat { display:flex; align-items:center; gap:10px; padding:10px; border-radius:10px; background:var(--card-2); margin-bottom:8px; cursor:grab; border:1px solid transparent; }
-  .beat.active { border-color:var(--accent); }
-  .beat .n { width:22px; height:22px; border-radius:50%; background:var(--card); display:grid; place-items:center; font-size:12px; color:var(--muted); flex:0 0 auto; }
-  .beat .t { flex:1; min-width:0; }
-  .beat .t b { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .beat .t span { color:var(--muted); font-size:12px; }
-  .beat .grip { color:var(--muted); }
-  .preview-wrap { position:relative; background:#000; border-radius:12px; overflow:hidden; aspect-ratio: 16/10; border:1px solid var(--line); }
+  button.small { min-height:34px; padding:4px 12px; font-size:14px; font-weight:500; }
+  button.chip { border-radius: 999px; }
+  button.chip.on { background: var(--text); color: var(--bg); }
+  .preview-wrap { position:relative; background:#000; border-radius:12px; overflow:hidden; aspect-ratio:16/10; border:1px solid var(--line); }
   canvas#stage { width:100%; height:100%; display:block; }
   canvas#stage.mirror { transform: scaleX(-1); }
-  .screen-mask { position:absolute; inset:0; pointer-events:none; border: 0 solid rgba(0,0,0,.6); }
-  .under { display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap; }
-  .under .muted { color:var(--muted); font-size:13px; flex:1; }
-  label.field { display:block; margin-top:10px; font-size:13px; color:var(--muted); }
-  label.field > * { margin-top:4px; }
-  input[type=text], input[type=number], select, textarea { width:100%; font:inherit; color:var(--text); background:var(--card-2); border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
-  input[type=color] { width:44px; height:34px; border:1px solid var(--line); border-radius:8px; background:var(--card-2); padding:2px; vertical-align:middle; }
-  .row { display:flex; gap:10px; }
-  .row > * { flex:1; min-width:0; }
-  label.check { display:flex; align-items:center; gap:10px; margin-top:12px; }
-  label.check input { width:18px; height:18px; accent-color:var(--accent); }
-  .hint { color:var(--muted); font-size:12px; margin-top:6px; }
-  .warn { background:#3b2d14; color:#f5d08a; border-radius:8px; padding:8px 10px; font-size:13px; margin-top:10px; }
-  .timeline { display:flex; gap:3px; margin-top:10px; height:8px; }
-  .timeline div { flex:1; background:var(--card-2); border-radius:3px; }
-  .timeline div.on { background:var(--accent); }
-  .status { font-size:13px; color:var(--muted); margin-top:8px; }
-  .kbd { font-family: ui-monospace, Menlo, monospace; font-size:12px; background:var(--card-2); padding:2px 6px; border-radius:6px; }
-  footer { padding: 8px 20px 20px; color: var(--muted); font-size: 12px; }
+  .scrub { display:flex; align-items:center; gap:10px; margin-top:12px; }
+  .dots { display:flex; gap:8px; flex:1; justify-content:center; }
+  .dots button { width:14px; height:14px; min-height:0; padding:0; border-radius:50%; background:var(--line); }
+  .dots button.on { background:var(--accent); }
+  .status { margin-top:10px; padding:10px 12px; border-radius:10px; background:var(--card-2); font-size:15px; }
+  .status.warn { background:var(--warn-bg); color:var(--warn); }
+  .status.ok { color: var(--ok); }
+  .templates { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .templates .label { margin: 0 6px 0 0; }
+  .label { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:10px; }
+  .field { display:grid; grid-template-columns: 110px 1fr; align-items:center; gap:10px; margin-top:10px; }
+  .field label { color:var(--muted); font-size:15px; }
+  .field input[type=text] { width:100%; font:inherit; font-size:18px; color:var(--text); background:var(--card-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; text-transform: uppercase; }
+  .field input.required-missing { border-color: var(--warn); }
+  .hint { color:var(--muted); font-size:13px; margin-top:8px; }
+  .drop { margin-top:10px; border:2px dashed var(--line); border-radius:10px; padding:14px; text-align:center; color:var(--muted); cursor:pointer; }
+  .drop.has { border-style: solid; color: var(--text); }
+  .drop img { max-height: 60px; display:block; margin: 0 auto 6px; background: #000; padding: 4px; border-radius: 6px; }
+  details.card > summary { cursor:pointer; font-weight:600; list-style:none; display:flex; justify-content:space-between; }
+  details.card > summary::after { content:"+"; color:var(--muted); }
+  details[open].card > summary::after { content:"–"; }
+  details.card > summary::-webkit-details-marker { display:none; }
+  .tune-row { display:grid; grid-template-columns: 1fr 150px 90px 140px; gap:8px; align-items:center; margin-top:8px; font-size:14px; }
+  .tune-row .name { color: var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tune-row select, .tune-row input, .g-row select, .g-row input[type=text] { width:100%; font:inherit; font-size:14px; color:var(--text); background:var(--card-2); border:1px solid var(--line); border-radius:8px; padding:6px 8px; }
+  .g-row { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-top:12px; font-size:14px; }
+  .g-row label { color: var(--muted); display:block; }
+  .g-row label > * { margin-top:4px; display:block; }
+  input[type=color] { width:100%; height:34px; border:1px solid var(--line); border-radius:8px; background:var(--card-2); padding:2px; }
+  label.check { display:flex; align-items:center; gap:8px; color:var(--text); font-size:14px; }
+  label.check input { width:16px; height:16px; accent-color:var(--accent); margin:0; }
+  .progress { height:8px; background:var(--card-2); border-radius:4px; overflow:hidden; margin-top:10px; }
+  .progress > div { height:100%; width:0; background:var(--accent); transition: width .2s; }
+  footer { color:var(--muted); font-size:12px; text-align:center; padding: 0 20px 24px; }
+  @media (max-width: 600px) { .field { grid-template-columns: 1fr; gap: 4px; } .tune-row { grid-template-columns: 1fr 1fr; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>Balcony Studio <span>/ Slides</span></h1>
-  <div class="top-actions">
-    <button id="btn-render">Render show (30 s)</button>
-    <button id="btn-send" class="primary">Send to balcony</button>
-  </div>
+  <h1>Balcony Studio <span id="crumb">/ Campaign</span></h1>
+  <button id="btn-send" class="primary">Send to balcony</button>
 </header>
 
 <main>
   <section class="card">
-    <div class="label">Show: Campaign, 6 beats</div>
-    <div id="beats"></div>
-    <div class="row">
-      <button class="small" id="btn-add">Add slide</button>
-      <button class="small" id="btn-dup">Duplicate</button>
-      <button class="small" id="btn-del">Remove</button>
-    </div>
-    <div class="hint">Drag to reorder. Each beat renders on its own, so editing one does not re-render the rest.</div>
-    <div class="timeline" id="timeline"></div>
-    <div class="status" id="status">Preview only. Nothing here is on the Pi yet.</div>
-  </section>
-
-  <section class="card">
-    <div class="label">Preview <span id="preview-note" style="text-transform:none;letter-spacing:0"></span></div>
     <div class="preview-wrap">
       <canvas id="stage" width="1280" height="800"></canvas>
-      <div class="screen-mask"></div>
     </div>
-    <div class="under">
-      <div class="muted" id="fmt">1280 x 800, 30 fps, black background. The gray mesh shows only what is bright.</div>
-      <label class="check" style="margin:0"><input type="checkbox" id="mirror"> Mirrored (as seen from the balcony)</label>
-      <label class="check" style="margin:0"><input type="checkbox" id="mesh" checked> Simulate the mesh</label>
-      <button class="small" id="btn-replay">Replay</button>
+    <div class="scrub">
+      <button class="small" id="btn-prev" title="Previous">◀</button>
+      <div class="dots" id="dots"></div>
+      <button class="small" id="btn-next" title="Next">▶</button>
+      <label class="check" title="How it looks from the balcony side"><input type="checkbox" id="mirror"> Mirror</label>
     </div>
+    <div class="status" id="status">Loading…</div>
+    <div class="progress" id="progress" hidden><div></div></div>
   </section>
 
   <section class="card">
-    <div class="label">This slide</div>
-    <label class="field">Headline <input type="text" id="headline" maxlength="40"></label>
-    <label class="field">Subline (optional) <input type="text" id="subline" maxlength="60"></label>
-    <div class="row">
-      <label class="field">Seconds <input type="number" id="duration" min="3" max="20" step="1"></label>
-      <label class="field">Effect
-        <select id="effect">
-          <option value="particle_assemble">Particle assemble</option>
-          <option value="depth_drift">Depth drift</option>
-          <option value="light_sweep">Light sweep</option>
-          <option value="reveal_behind">Reveal behind</option>
-          <option value="halo_pulse">Halo pulse</option>
-          <option value="trail_wipe">Trail wipe</option>
-        </select>
-      </label>
+    <div class="templates">
+      <span class="label">Template</span>
+      <button class="chip on" data-template="campaign">Campaign</button>
+      <button class="chip" data-template="halloween">Halloween</button>
+      <button class="chip" data-template="holiday">Holiday</button>
     </div>
-    <div class="row">
-      <label class="field">Transition
-        <select id="transition"><option value="fade">Fade</option><option value="particle_burst">Particle burst</option></select>
-      </label>
-      <label class="field">Text colour <br><input type="color" id="color" value="#ffffff"> <input type="color" id="accent" value="#f2a33a" title="Accent"></label>
+    <div id="fields"></div>
+    <div class="hint">Leave a line blank to skip it. Add a smaller second line with a bar, like <b>VOTE NOV 3 | Early voting Oct 19</b>.</div>
+    <div id="campaign-extras">
+      <div class="field"><label for="payer">Paid for by</label><input type="text" id="payer" placeholder="YOUR NAME, OR THE COMMITTEE'S" maxlength="80"></div>
+      <div class="hint">Required on political advertising in Texas. It goes on every frame.</div>
+      <div class="drop" id="drop">Drop the logo PNG here, or click to choose. White parts vanish on the mesh; dark logos get inverted.</div>
+      <input type="file" id="logo" accept="image/png,image/svg+xml,image/jpeg" hidden>
     </div>
-    <label class="field">Logo PNG (white parts are knocked out to black on the mesh)
-      <input type="file" id="logo" accept="image/png,image/svg+xml">
-    </label>
-    <label class="check"><input type="checkbox" id="political"> Political advertising (adds the required footer)</label>
-    <label class="field" id="payer-wrap">Paid for by <input type="text" id="payer" placeholder="Your name, or the committee's" maxlength="80"></label>
-    <div class="warn" id="legal" hidden>Texas Election Code 255.001: political advertising must say so and name who paid. The footer cannot be blank.</div>
-    <div class="hint">Brightness check: <span id="lum">–</span>. A frame more than 35% bright looks like a bare bulb on the mesh.</div>
-    <div class="hint">Letter height on the 7.5 ft picture: <span id="letter">–</span>. Aim for 10 in or more for the far sidewalk.</div>
   </section>
+
+  <details class="card" id="tune">
+    <summary>Fine-tune</summary>
+    <div class="label" style="margin-top:12px">Each beat</div>
+    <div id="tune-rows"></div>
+    <div class="label" style="margin-top:16px">Everything</div>
+    <div class="g-row">
+      <label>Text colour <input type="color" id="g-color" value="#ffffff"></label>
+      <label>Accent <input type="color" id="g-accent" value="#f2a33a"></label>
+      <label>Footer <select id="g-footer"><option value="top">Top (railing may hide the bottom)</option><option value="bottom">Bottom</option></select></label>
+      <label>Mesh look <select id="g-mesh"><option value="on">On (what the street sees)</option><option value="off">Off</option></select></label>
+      <label class="check" style="margin-top:22px"><input type="checkbox" id="g-invert"> Invert the logo (for dark logos)</label>
+    </div>
+  </details>
 </main>
-<footer>Mock-up of the laptop studio's slide builder. The real one renders these effects headless to MP4 with ffmpeg and sends them to the Pi over Wi-Fi.</footer>
+<footer>Mock-up of the laptop studio. The real one renders every beat to MP4 and copies the show to the Pi in one step.</footer>
 
 <script>
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const W = 1280, H = 800, FOOT = 70;
+  const W = 1280, H = 800, MARGIN = 40, FOOT_BAND = 96, FOOT_PX = 52, SUB_MIN = 64;
+  const IN_PER_PX = 90 / 1280;                 // the picture is about 7.5 ft wide
+  const FADE = 1.5;                             // seconds, in and out
 
-  let show = [
-    { headline: "JANE DOE", subline: "", duration: 6, effect: "particle_assemble", transition: "fade", color: "#ffffff", accent: "#f2a33a", political: true, payer: "" },
-    { headline: "FOR CITY COUNCIL", subline: "District 14", duration: 5, effect: "reveal_behind", transition: "fade", color: "#ffffff", accent: "#f2a33a", political: true, payer: "" },
-    { headline: "SAFER STREETS", subline: "One message line goes here", duration: 5, effect: "depth_drift", transition: "fade", color: "#ffffff", accent: "#f2a33a", political: true, payer: "" },
-    { headline: "VOTE NOV 3", subline: "Early voting Oct 19 to 30", duration: 6, effect: "trail_wipe", transition: "particle_burst", color: "#ffffff", accent: "#f2a33a", political: true, payer: "" },
-    { headline: "JANEDOE.ORG", subline: "", duration: 4, effect: "halo_pulse", transition: "fade", color: "#ffffff", accent: "#f2a33a", political: true, payer: "" },
-    { headline: "JANE DOE", subline: "", duration: 4, effect: "light_sweep", transition: "fade", color: "#ffffff", accent: "#f2a33a", political: true, payer: "" },
-  ];
-  let current = 0, t0 = performance.now(), seed = 1;
+  // ---- templates ---------------------------------------------------------
+  const TEMPLATES = {
+    campaign: {
+      label: "Campaign", political: true, accent: "#f2a33a", background: null,
+      fields: [
+        { key: "name", label: "Name", placeholder: "JANE DOE" },
+        { key: "office", label: "Office", placeholder: "FOR CITY COUNCIL" },
+        { key: "message", label: "Message", placeholder: "SAFER STREETS" },
+        { key: "ask", label: "Ask", placeholder: "VOTE NOV 3 | Early voting Oct 19" },
+        { key: "website", label: "Website", placeholder: "JANEDOE.ORG" },
+      ],
+      beats: [
+        { field: "name", wordmark: true, effect: "particle_assemble", seconds: 6, transition: "fade" },
+        { field: "office", effect: "reveal_behind", seconds: 5, transition: "fade" },
+        { field: "message", effect: "depth_drift", seconds: 5, transition: "fade" },
+        { field: "ask", effect: "trail_wipe", seconds: 6, transition: "particle_burst" },
+        { field: "website", effect: "halo_pulse", seconds: 4, transition: "fade" },
+        { field: "name", wordmark: true, effect: "light_sweep", seconds: 4, transition: "fade" },
+      ],
+    },
+    halloween: {
+      label: "Halloween", political: false, accent: "#ff8a1f", background: "embers",
+      fields: [
+        { key: "greeting", label: "Greeting", placeholder: "HAPPY HALLOWEEN" },
+        { key: "message", label: "Message", placeholder: "TRICK OR TREAT | 6 to 9 pm" },
+        { key: "when", label: "When", placeholder: "OCT 31" },
+      ],
+      beats: [
+        { field: "greeting", effect: "depth_drift", seconds: 6, transition: "fade" },
+        { field: "message", effect: "trail_wipe", seconds: 6, transition: "particle_burst" },
+        { field: "when", effect: "halo_pulse", seconds: 4, transition: "fade" },
+      ],
+    },
+    holiday: {
+      label: "Holiday", political: false, accent: "#9fd3ff", background: "snow",
+      fields: [
+        { key: "greeting", label: "Greeting", placeholder: "HAPPY HOLIDAYS" },
+        { key: "message", label: "Message", placeholder: "PEACE ON EARTH" },
+        { key: "when", label: "When", placeholder: "DEC 24" },
+      ],
+      beats: [
+        { field: "greeting", effect: "light_sweep", seconds: 6, transition: "fade" },
+        { field: "message", effect: "depth_drift", seconds: 5, transition: "fade" },
+        { field: "when", effect: "halo_pulse", seconds: 4, transition: "fade" },
+      ],
+    },
+  };
+  const EFFECT_NAMES = { particle_assemble: "Particle assemble", depth_drift: "Depth drift", light_sweep: "Light sweep",
+    reveal_behind: "Reveal behind", halo_pulse: "Halo pulse", trail_wipe: "Trail wipe" };
 
-  // ---- deterministic randomness -----------------------------------------
+  const state = {
+    template: "campaign",
+    values: { campaign: {}, halloween: {}, holiday: {} },
+    overrides: { campaign: {}, halloween: {}, holiday: {} },
+    payer: "",
+    logo: null,                 // processed canvas
+    logoInvert: false,
+    color: "#ffffff", accent: "#f2a33a", footer: "top", mesh: true,
+  };
+  // sensible starting words so the preview is not empty
+  state.values.campaign = { name: "JANE DOE", office: "FOR CITY COUNCIL", message: "SAFER STREETS", ask: "VOTE NOV 3 | Early voting Oct 19", website: "JANEDOE.ORG" };
+  state.values.halloween = { greeting: "HAPPY HALLOWEEN", message: "TRICK OR TREAT | 6 to 9 pm", when: "OCT 31" };
+  state.values.holiday = { greeting: "HAPPY HOLIDAYS", message: "PEACE ON EARTH", when: "DEC 24" };
+
   function rng(s) { let x = s >>> 0; return () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; }; }
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const ease = (p) => p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
 
-  // ---- text layout -------------------------------------------------------
-  function fitFont(ctx, text, maxWidth, start, min, weight) {
+  // ---- the show: active beats built from the form -----------------------------
+  function activeBeats() {
+    const t = TEMPLATES[state.template];
+    const out = [];
+    t.beats.forEach((b, i) => {
+      const raw = (state.values[state.template][b.field] || "").trim();
+      const useLogo = b.wordmark && state.logo;
+      if (!raw && !useLogo) return;
+      const [head, sub] = raw.split("|").map((s) => (s || "").trim());
+      const o = state.overrides[state.template][i] || {};
+      out.push({ index: i, headline: (head || "").toUpperCase(), subline: sub || "", logo: useLogo ? state.logo : null,
+        effect: o.effect || b.effect, seconds: o.seconds || b.seconds, transition: o.transition || b.transition,
+        political: t.political, field: b.field, label: t.fields.find((f) => f.key === b.field).label });
+    });
+    return out;
+  }
+
+  // ---- artwork: each beat's words (or logo) drawn once into a layer --------------
+  const artCache = new Map();
+  function contentBox() {
+    // the area words may use, leaving the footer band and a safe margin
+    const top = MARGIN + (state.footer === "top" ? FOOT_BAND : 0);
+    const bottom = H - MARGIN - (state.footer === "bottom" ? FOOT_BAND : 0);
+    return { top, bottom, height: bottom - top };
+  }
+  function fitFont(ctx, text, family, weight, maxWidth, start, min) {
     let size = start;
-    while (size > min) { ctx.font = weight + " " + size + "px -apple-system, Helvetica, Arial, sans-serif"; if (ctx.measureText(text).width <= maxWidth) break; size -= 4; }
+    while (size > min) { ctx.font = weight + " " + size + "px " + family; if (ctx.measureText(text).width <= maxWidth) break; size -= 4; }
     return size;
   }
-  function layout(ctx, slide) {
-    const titleSize = slide.headline ? fitFont(ctx, slide.headline, W * 0.82, 210, 60, "bold") : 0;
-    const subSize = slide.subline ? fitFont(ctx, slide.subline, W * 0.8, Math.max(44, Math.round(titleSize * 0.42)), 32, "600") : 0;
-    const total = titleSize * 1.1 + (subSize ? subSize * 1.7 : 0);
-    const top = (H - FOOT) / 2 - total / 2;
-    return { titleSize, subSize, titleY: top + titleSize * 0.9, subY: top + titleSize * 1.1 + subSize * 1.3 };
-  }
-
-  // an offscreen mask of the text, used by particle effects
-  const maskCanvas = document.createElement("canvas"); maskCanvas.width = W; maskCanvas.height = H;
-  function textPoints(slide, count) {
-    const m = maskCanvas.getContext("2d");
-    m.clearRect(0, 0, W, H);
-    const L = layout(m, slide);
-    m.fillStyle = "#fff"; m.textAlign = "center"; m.textBaseline = "alphabetic";
-    m.font = "bold " + L.titleSize + "px -apple-system, Helvetica, Arial, sans-serif";
-    m.fillText(slide.headline, W / 2, L.titleY);
-    const data = m.getImageData(0, 0, W, H).data;
+  function artwork(beat) {
+    const key = JSON.stringify([beat.headline, beat.subline, !!beat.logo, state.color, state.footer, state.logoInvert, beat.political]);
+    if (artCache.has(key)) return artCache.get(key);
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const ctx = c.getContext("2d");
+    const box = contentBox();
+    const info = { canvas: c, headPx: 0, subPx: 0, subFits: true };
+    if (beat.logo) {
+      const maxW = W * 0.72, maxH = box.height * 0.6;
+      const s = Math.min(maxW / beat.logo.width, maxH / beat.logo.height);
+      const w = beat.logo.width * s, h = beat.logo.height * s;
+      ctx.drawImage(beat.logo, (W - w) / 2, box.top + (box.height - h) / 2, w, h);
+      info.headPx = h * 0.6;
+    } else {
+      const headPx = fitFont(ctx, beat.headline, "Anton, Impact, 'Arial Narrow', sans-serif", "400", W * 0.84, 260, 72);
+      let subPx = 0;
+      if (beat.subline) {
+        subPx = fitFont(ctx, beat.subline, "Inter, Helvetica, Arial, sans-serif", "700", W * 0.84, Math.max(SUB_MIN, Math.round(headPx * 0.42)), SUB_MIN);
+        ctx.font = "700 " + subPx + "px Inter, Helvetica, Arial, sans-serif";
+        info.subFits = ctx.measureText(beat.subline).width <= W * 0.84;
+      }
+      const total = headPx * 0.95 + (subPx ? subPx * 1.5 : 0);
+      let y = box.top + (box.height - total) / 2 + headPx * 0.85;
+      ctx.fillStyle = state.color; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+      ctx.font = "400 " + headPx + "px Anton, Impact, 'Arial Narrow', sans-serif";
+      ctx.fillText(beat.headline, W / 2, y);
+      if (subPx) {
+        ctx.font = "700 " + subPx + "px Inter, Helvetica, Arial, sans-serif";
+        ctx.fillText(beat.subline, W / 2, y + subPx * 1.35);
+      }
+      info.headPx = headPx * 0.72;      // cap height, roughly
+      info.subPx = subPx * 0.72;
+    }
+    // points on the artwork, for particle effects
+    const data = ctx.getImageData(0, 0, W, H).data;
+    const r = rng(11);
     const pts = [];
-    const r = rng(seed);
     let tries = 0;
-    while (pts.length < count && tries < count * 40) {
+    while (pts.length < 1500 && tries < 60000) {
       tries++;
-      const x = Math.floor(r() * W), y = Math.floor(r() * (H - FOOT));
+      const x = Math.floor(r() * W), y = Math.floor(r() * H);
       if (data[(y * W + x) * 4 + 3] > 128) pts.push([x, y]);
     }
-    return pts;
+    info.points = pts;
+    artCache.set(key, info);
+    return info;
   }
-  let cachedPts = null, cachedKey = "";
 
-  // ---- effects (each takes progress p in 0..1, draws onto ctx) ------------
-  function drawText(ctx, slide, alpha, scale, glow, dx, dy, clip) {
-    const L = layout(ctx, slide);
+  // ---- drawing helpers ----------------------------------------------------
+  function drawArt(ctx, art, alpha, scale, glow, clip) {
+    if (alpha <= 0) return;
     ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(W / 2 + (dx || 0), 0);
-    ctx.scale(scale || 1, scale || 1);
-    ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-    if (clip) { ctx.beginPath(); ctx.rect(clip.x - W / 2, 0, clip.w, H); ctx.clip(); }
-    ctx.shadowColor = slide.color; ctx.shadowBlur = glow == null ? 30 : glow;
-    ctx.fillStyle = slide.color;
-    ctx.font = "bold " + L.titleSize + "px -apple-system, Helvetica, Arial, sans-serif";
-    ctx.fillText(slide.headline, 0, L.titleY / (scale || 1) + (dy || 0));
-    ctx.fillText(slide.headline, 0, L.titleY / (scale || 1) + (dy || 0));
-    if (slide.subline) {
-      ctx.font = "600 " + L.subSize + "px -apple-system, Helvetica, Arial, sans-serif";
-      ctx.shadowBlur = 14; ctx.fillStyle = "#ffffff";
-      ctx.fillText(slide.subline, 0, L.subY / (scale || 1) + (dy || 0));
-    }
+    ctx.globalAlpha = clamp(alpha, 0, 1);
+    if (clip) { ctx.beginPath(); ctx.rect(clip.x, 0, clip.w, H); ctx.clip(); }
+    const box = contentBox(), cy = box.top + box.height / 2;
+    ctx.translate(W / 2, cy); ctx.scale(scale || 1, scale || 1); ctx.translate(-W / 2, -cy);
+    ctx.shadowColor = state.color; ctx.shadowBlur = glow == null ? 14 : glow;   // tight, bright glow
+    ctx.drawImage(art.canvas, 0, 0);
+    ctx.drawImage(art.canvas, 0, 0);
     ctx.restore();
   }
-  const ease = (p) => p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
-  const holdWindow = (p, a, b) => p < a ? p / a : p > b ? (1 - p) / (1 - b) : 1;   // in, hold, out
+  function drawParticles(ctx, pts, fn, alpha, color) {
+    ctx.save(); ctx.fillStyle = color; ctx.shadowBlur = 0; ctx.globalAlpha = clamp(alpha, 0, 1);
+    pts.forEach((p, i) => { const q = fn(p, i); if (q) ctx.fillRect(q[0], q[1], 3, 3); });
+    ctx.restore();
+  }
+
+  // envelope: fade in / hold / fade out, in seconds
+  function envelope(t, dur) {
+    const f = Math.min(FADE, dur / 3);
+    return { t, dur, f, ain: clamp(t / f, 0, 1), aout: clamp((dur - t) / f, 0, 1), outP: clamp(1 - (dur - t) / f, 0, 1) };
+  }
 
   const effects = {
-    particle_assemble(ctx, slide, p) {
-      const key = slide.headline + "|" + seed;
-      if (cachedKey !== key) { cachedPts = textPoints(slide, 1400); cachedKey = key; }
-      const r = rng(seed + 7);
-      const inP = Math.min(1, p / 0.45), outP = p > 0.8 ? (p - 0.8) / 0.2 : 0;
-      ctx.fillStyle = slide.accent;
-      ctx.shadowColor = slide.accent; ctx.shadowBlur = 8;
-      cachedPts.forEach(([x, y], i) => {
-        const sx = r() * W, sy = r() * (H - FOOT), delay = r() * 0.5;
-        const q = ease(Math.max(0, Math.min(1, (inP - delay * 0.6) / 0.6)));
-        const px = sx + (x - sx) * q + (outP ? (r() - 0.5) * 400 * outP : 0);
-        const py = sy + (y - sy) * q + (outP ? (r() - 0.5) * 400 * outP : 0);
-        ctx.globalAlpha = (0.5 + 0.5 * q) * (1 - outP);
-        ctx.fillRect(px, py, 3, 3);
-      });
-      ctx.globalAlpha = 1;
-      if (inP >= 1) drawText(ctx, slide, Math.min(1, (p - 0.45) / 0.15) * (1 - outP), 1, 30, 0, 0);
+    particle_assemble(ctx, beat, art, e) {
+      const r = rng(21);
+      const assemble = clamp(t2p(e.t, 0, 2.6), 0, 1);
+      const dotsIn = clamp(e.t / 0.5, 0, 1);                       // dots fade in from black over 0.5 s
+      const textIn = clamp((e.t - 2.4) / 0.6, 0, 1);
+      if (assemble < 1 || e.outP > 0) {
+        drawParticles(ctx, art.points, (p) => {
+          const sx = r() * W, sy = r() * H, delay = r() * 0.5;
+          const q = ease(clamp((assemble - delay * 0.5) / 0.5, 0, 1));
+          return [sx + (p[0] - sx) * q, sy + (p[1] - sy) * q];
+        }, dotsIn * (1 - textIn) * e.aout, state.accent);
+      }
+      drawArt(ctx, art, textIn * e.aout, 1, 14);
     },
-    depth_drift(ctx, slide, p) {
-      const a = holdWindow(p, 0.2, 0.85);
-      const scale = 0.92 + 0.12 * p;
-      drawText(ctx, slide, a, scale, 24 + 20 * p, 0, 0);
+    depth_drift(ctx, beat, art, e) {
+      drawArt(ctx, art, Math.min(e.ain, e.aout), 0.94 + 0.08 * (e.t / e.dur), 12);
     },
-    light_sweep(ctx, slide, p) {
-      const a = holdWindow(p, 0.15, 0.8);
-      drawText(ctx, slide, a * 0.75, 1, 12, 0, 0);
-      const x = -300 + (W + 600) * ease(Math.min(1, p / 0.8));
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-      const g = ctx.createLinearGradient(x - 220, 0, x + 220, 0);
-      g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255,0.9)"); g.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = g; ctx.globalAlpha = a;
-      ctx.beginPath(); ctx.rect(x - 220, 0, 440, H - FOOT); ctx.clip();
-      drawText(ctx, slide, 1, 1, 40, 0, 0);
+    light_sweep(ctx, beat, art, e) {
+      const a = Math.min(e.ain, e.aout);
+      drawArt(ctx, art, a * 0.8, 1, 8);
+      const x = -300 + (W + 600) * ease(clamp(e.t / (e.dur - e.f), 0, 1));
+      ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = a;
+      ctx.beginPath(); ctx.rect(x - 160, 0, 320, H); ctx.clip();
+      const g = ctx.createLinearGradient(x - 160, 0, x + 160, 0);
+      g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255,0.35)"); g.addColorStop(1, "rgba(255,255,255,0)");
+      drawArt(ctx, art, 1, 1, 22);
+      ctx.fillStyle = g; ctx.globalCompositeOperation = "source-atop"; ctx.fillRect(x - 160, 0, 320, H);
       ctx.restore();
     },
-    reveal_behind(ctx, slide, p) {
-      const a = p > 0.85 ? (1 - p) / 0.15 : 1;
-      const w = W * ease(Math.min(1, p / 0.5));
-      drawText(ctx, slide, a, 1, 30, 0, 0, { x: (W - w) / 2, w: w });
-      ctx.save(); ctx.globalAlpha = a * (p < 0.5 ? 1 : Math.max(0, 1 - (p - 0.5) / 0.15));
-      ctx.strokeStyle = slide.accent; ctx.shadowColor = slide.accent; ctx.shadowBlur = 20; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo((W - w) / 2, 120); ctx.lineTo((W - w) / 2, H - FOOT - 120); ctx.moveTo((W + w) / 2, 120); ctx.lineTo((W + w) / 2, H - FOOT - 120); ctx.stroke();
+    reveal_behind(ctx, beat, art, e) {
+      const open = ease(clamp(e.t / 1.5, 0, 1));
+      const w = W * open;
+      drawArt(ctx, art, e.aout, 1, 14, { x: (W - w) / 2, w: w });
+      const lines = clamp(1 - (e.t - 1.5) / 0.6, 0, 1) * e.aout;
+      if (lines > 0) {
+        const box = contentBox();
+        ctx.save(); ctx.globalAlpha = lines; ctx.strokeStyle = state.accent; ctx.lineWidth = 4; ctx.shadowBlur = 0;
+        ctx.beginPath(); ctx.moveTo((W - w) / 2, box.top + 40); ctx.lineTo((W - w) / 2, box.bottom - 40);
+        ctx.moveTo((W + w) / 2, box.top + 40); ctx.lineTo((W + w) / 2, box.bottom - 40); ctx.stroke(); ctx.restore();
+      }
+    },
+    halo_pulse(ctx, beat, art, e) {
+      const a = Math.min(e.ain, e.aout);
+      drawArt(ctx, art, a, 1, 14);
+      const pulse = 0.5 + 0.5 * Math.sin(e.t * Math.PI);            // one pulse every two seconds
+      const box = contentBox();
+      ctx.save(); ctx.globalAlpha = a * (0.55 + 0.45 * pulse); ctx.strokeStyle = state.accent; ctx.lineWidth = 4; ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.ellipse(W / 2, box.top + box.height / 2, 540 + 16 * pulse, 260 + 10 * pulse, 0, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     },
-    halo_pulse(ctx, slide, p) {
-      const a = holdWindow(p, 0.2, 0.85);
-      const pulse = 0.5 + 0.5 * Math.sin(p * Math.PI * 4);
-      drawText(ctx, slide, a, 1, 20 + 50 * pulse, 0, 0);
-      ctx.save(); ctx.globalAlpha = a * 0.25 * pulse; ctx.strokeStyle = slide.accent; ctx.lineWidth = 6; ctx.shadowColor = slide.accent; ctx.shadowBlur = 40;
-      ctx.beginPath(); ctx.ellipse(W / 2, (H - FOOT) / 2, 520 + 30 * pulse, 240 + 20 * pulse, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    },
-    trail_wipe(ctx, slide, p) {
-      const a = p > 0.85 ? (1 - p) / 0.15 : 1;
-      const q = ease(Math.min(1, p / 0.45));
+    trail_wipe(ctx, beat, art, e) {
+      const q = ease(clamp(e.t / 1.5, 0, 1));
       const w = W * q;
-      drawText(ctx, slide, a, 1, 30, 0, 0, { x: 0, w: w });
-      if (p < 0.5) {
-        ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.6 * (1 - q);
-        const r = rng(seed + 3);
-        for (let i = 0; i < 40; i++) {
-          const y = 140 + r() * (H - FOOT - 280), len = 60 + r() * 220;
-          const g = ctx.createLinearGradient(w - len, 0, w, 0);
-          g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(1, slide.accent);
-          ctx.fillStyle = g; ctx.fillRect(w - len, y, len, 2);
+      drawArt(ctx, art, e.aout, 1, 14, { x: 0, w: w });
+      if (q < 0.98) {
+        const r = rng(5), box = contentBox();
+        ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.7 * (1 - q); ctx.shadowBlur = 0;
+        for (let i = 0; i < 36; i++) {
+          const y = box.top + 40 + r() * (box.height - 80), len = 60 + r() * 200;
+          const x0 = Math.max(0, w - len);
+          if (w - x0 < 4) continue;
+          const g = ctx.createLinearGradient(x0, 0, w, 0);
+          g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(1, state.accent);
+          ctx.fillStyle = g; ctx.fillRect(x0, y, w - x0, 2);
         }
         ctx.restore();
       }
     },
   };
+  function t2p(t, from, to) { return (t - from) / (to - from); }
 
-  // ---- rendering loop -------------------------------------------------
-  const stage = $("stage"), ctx = stage.getContext("2d");
-  function frame() {
-    const slide = show[current];
-    const total = slide.duration * 1000;
-    const p = ((performance.now() - t0) % total) / total;
-    ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
-    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
-    if (slide.headline) effects[slide.effect](ctx, slide, p);
-    // transition fade at the very end
-    if (p > 0.94) { ctx.fillStyle = "rgba(0,0,0," + ((p - 0.94) / 0.06) + ")"; ctx.fillRect(0, 0, W, H); }
-    if (slide.political) drawFooter(slide);
-    if ($("mesh").checked) meshify();
-    updateTimeline(p);
-    requestAnimationFrame(frame);
+  // particle burst: the words fly apart during the fade-out instead of fading
+  function burst(ctx, art, e) {
+    if (e.outP <= 0) return false;
+    const r = rng(33);
+    drawParticles(ctx, art.points, (p) => {
+      const ang = r() * Math.PI * 2, speed = 120 + r() * 420, d = e.outP;
+      return [p[0] + Math.cos(ang) * speed * d, p[1] + Math.sin(ang) * speed * d];
+    }, 1 - e.outP, state.accent);
+    return true;
   }
-  function drawFooter(slide) {
-    ctx.save(); ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
-    ctx.fillStyle = "#000"; ctx.fillRect(0, H - FOOT, W, FOOT);
-    ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.shadowBlur = 0;
-    ctx.font = "600 34px -apple-system, Helvetica, Arial, sans-serif";
-    ctx.fillText("Pol. adv. paid for by " + (slide.payer || "________________"), W / 2, H - FOOT / 2 + 2);
+
+  // backgrounds for the seasonal templates: small bright sparse dots only
+  function background(ctx, kind, time) {
+    const r = rng(kind === "snow" ? 77 : 99);
+    ctx.save(); ctx.shadowBlur = 0;
+    for (let i = 0; i < (kind === "snow" ? 140 : 40); i++) {
+      const depth = 0.4 + r() * 0.6, x0 = r() * W, y0 = r() * H, phase = r() * 10;
+      let x, y, size, alpha;
+      if (kind === "snow") {
+        y = (y0 + time * 30 * depth) % (H + 20); x = x0 + Math.sin(time * 0.6 + phase) * 30 * depth;
+        size = 2 + 3 * depth; alpha = 0.5 + 0.5 * depth; ctx.fillStyle = "#ffffff";
+      } else {
+        y = (y0 - time * 18 * depth + H * 3) % (H + 20); x = x0 + Math.sin(time * 0.9 + phase) * 24 * depth;
+        size = 2 + 2 * depth; alpha = (0.4 + 0.6 * depth) * (0.6 + 0.4 * Math.sin(time * 3 + phase)); ctx.fillStyle = state.accent;
+      }
+      ctx.globalAlpha = alpha; ctx.fillRect(x, y, size, size);
+    }
     ctx.restore();
   }
-  function meshify() {
-    // what the gray mesh does: dark pixels vanish, brights float. Approximate with a dark gray veil that
-    // only bright areas punch through.
-    ctx.save(); ctx.shadowBlur = 0; ctx.shadowColor = "transparent"; ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = "multiply"; ctx.fillStyle = "#dcdcdc"; ctx.fillRect(0, 0, W, H); ctx.restore();
+
+  function drawFooter(ctx) {
+    const text = "Pol. adv. paid for by " + (state.payer.trim() || "________________");
+    const y = state.footer === "top" ? MARGIN + FOOT_BAND / 2 : H - MARGIN - FOOT_BAND / 2;
+    ctx.save(); ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "#000"; ctx.fillRect(0, y - FOOT_BAND / 2, W, FOOT_BAND);
+    ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "700 " + FOOT_PX + "px Inter, Helvetica, Arial, sans-serif";
+    ctx.fillText(text, W / 2, y + 2); ctx.restore();
   }
-  function updateTimeline(p) {
-    const cells = $("timeline").children;
-    const durations = show.map((s) => s.duration), sum = durations.reduce((a, b) => a + b, 0);
+
+  // ---- playback ---------------------------------------------------------------
+  const raw = document.createElement("canvas"); raw.width = W; raw.height = H;
+  const rctx = raw.getContext("2d");
+  const stage = $("stage"), sctx = stage.getContext("2d");
+  const sampler = document.createElement("canvas"); sampler.width = 64; sampler.height = 40;
+  let clock = performance.now(), lastSample = 0;
+  const peaks = {};       // beat index -> peak mean luminance
+
+  function timeline() {
+    const beats = activeBeats();
+    const total = beats.reduce((a, b) => a + b.seconds, 0) || 1;
+    const t = ((performance.now() - clock) / 1000) % total;
     let acc = 0;
-    for (let i = 0; i < current; i++) acc += durations[i];
-    const pos = (acc + p * show[current].duration) / sum;
-    for (let i = 0; i < cells.length; i++) cells[i].classList.toggle("on", i / cells.length <= pos);
+    for (let i = 0; i < beats.length; i++) {
+      if (t < acc + beats[i].seconds) return { beats, i, local: t - acc, total, t };
+      acc += beats[i].seconds;
+    }
+    return { beats, i: 0, local: 0, total, t: 0 };
+  }
+  function jumpTo(i) {
+    const beats = activeBeats();
+    let acc = 0;
+    for (let k = 0; k < i && k < beats.length; k++) acc += beats[k].seconds;
+    clock = performance.now() - acc * 1000;
   }
 
-  // ---- UI --------------------------------------------------------------
-  function renderBeats() {
-    const holder = $("beats"); holder.innerHTML = "";
-    show.forEach((s, i) => {
-      const el = document.createElement("div"); el.className = "beat" + (i === current ? " active" : ""); el.draggable = true;
-      el.innerHTML = '<div class="n">' + (i + 1) + '</div><div class="t"><b></b><span></span></div><div class="grip">⋮⋮</div>';
-      el.querySelector("b").textContent = s.headline || "(empty)";
-      el.querySelector("span").textContent = s.effect.replace("_", " ") + " · " + s.duration + " s";
-      el.onclick = () => { current = i; t0 = performance.now(); renderBeats(); loadEditor(); };
-      el.ondragstart = (e) => { e.dataTransfer.setData("text/plain", i); };
-      el.ondragover = (e) => e.preventDefault();
-      el.ondrop = (e) => { e.preventDefault(); const from = Number(e.dataTransfer.getData("text/plain")); const [m] = show.splice(from, 1); show.splice(i, 0, m); current = i; renderBeats(); loadEditor(); };
-      holder.appendChild(el);
-    });
-    const tl = $("timeline"); tl.innerHTML = ""; for (let i = 0; i < 60; i++) tl.appendChild(document.createElement("div"));
-    const secs = show.reduce((a, s) => a + s.duration, 0);
-    $("btn-render").textContent = "Render show (" + secs + " s)";
-  }
-  function loadEditor() {
-    const s = show[current];
-    $("headline").value = s.headline; $("subline").value = s.subline; $("duration").value = s.duration;
-    $("effect").value = s.effect; $("transition").value = s.transition; $("color").value = s.color; $("accent").value = s.accent;
-    $("political").checked = s.political; $("payer").value = s.payer;
-    $("legal").hidden = !(s.political && !s.payer); $("payer-wrap").hidden = !s.political;
-    measure();
-  }
-  function saveEditor() {
-    const s = show[current];
-    s.headline = $("headline").value.toUpperCase(); s.subline = $("subline").value; s.duration = Math.max(3, Math.min(20, Number($("duration").value) || 6));
-    s.effect = $("effect").value; s.transition = $("transition").value; s.color = $("color").value; s.accent = $("accent").value;
-    s.political = $("political").checked; s.payer = $("payer").value.trim();
-    $("legal").hidden = !(s.political && !s.payer); $("payer-wrap").hidden = !s.political;
-    cachedKey = ""; t0 = performance.now();
-    renderBeats(); measure();
-  }
-  ["headline", "subline", "duration", "effect", "transition", "color", "accent", "political", "payer"].forEach((id) => { $(id).oninput = saveEditor; $(id).onchange = saveEditor; });
-
-  function measure() {
-    // letter height: picture is ~7.5 ft wide for 1280 px, so 1 px = 0.07 in
-    const s = show[current];
-    const L = layout(ctx, s);
-    const inches = L.titleSize * 0.7 * (90 / 1280);
-    $("letter").textContent = s.headline ? inches.toFixed(0) + " in (" + (inches * 10).toFixed(0) + " ft readable)" : "–";
-    // rough brightness: fraction of lit pixels weighted
-    const m = maskCanvas.getContext("2d"); m.clearRect(0, 0, W, H);
-    m.fillStyle = "#fff"; m.textAlign = "center";
-    m.font = "bold " + L.titleSize + "px -apple-system, Helvetica, Arial, sans-serif"; if (s.headline) m.fillText(s.headline, W / 2, L.titleY);
-    const d = m.getImageData(0, 0, W, H).data; let lit = 0;
-    for (let i = 3; i < d.length; i += 4 * 16) if (d[i] > 128) lit++;
-    const frac = lit / (d.length / 4 / 16);
-    $("lum").textContent = (frac * 100).toFixed(0) + "% of the frame lit" + (frac > 0.35 ? " (too bright, shrink it)" : " (fine)");
+  function frame() {
+    const tl = timeline();
+    rctx.save(); rctx.setTransform(1, 0, 0, 1, 0, 0); rctx.globalAlpha = 1; rctx.shadowBlur = 0; rctx.globalCompositeOperation = "source-over";
+    rctx.fillStyle = "#000"; rctx.fillRect(0, 0, W, H); rctx.restore();
+    const tpl = TEMPLATES[state.template];
+    if (tpl.background) background(rctx, tpl.background, tl.t);
+    if (tl.beats.length) {
+      const beat = tl.beats[tl.i], art = artwork(beat), e = envelope(tl.local, beat.seconds);
+      if (beat.transition === "particle_burst" && e.outP > 0) { burst(rctx, art, e); }
+      else effects[beat.effect](rctx, beat, art, e);
+      if (beat.political) drawFooter(rctx);
+    }
+    // brightness sample, twice a second, on the real frame (before the mesh look)
+    if (performance.now() - lastSample > 500 && tl.beats.length) {
+      lastSample = performance.now();
+      const sc = sampler.getContext("2d"); sc.drawImage(raw, 0, 0, 64, 40);
+      const d = sc.getImageData(0, 0, 64, 40).data; let sum = 0;
+      for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      const mean = sum / (d.length / 4) / 255;
+      const key = state.template + ":" + tl.beats[tl.i].index;
+      peaks[key] = Math.max(peaks[key] || 0, mean);
+      updateStatus();
+    }
+    sctx.save(); sctx.filter = state.mesh ? "brightness(0.5) blur(1.5px)" : "none";
+    sctx.fillStyle = "#000"; sctx.fillRect(0, 0, W, H); sctx.drawImage(raw, 0, 0); sctx.restore();
+    renderDots(tl);
+    requestAnimationFrame(frame);
   }
 
+  // ---- status line, in plain words -----------------------------------------------
+  function updateStatus() {
+    const beats = activeBeats(), tpl = TEMPLATES[state.template], st = $("status");
+    const send = $("btn-send");
+    let problem = "";
+    if (!beats.length) problem = "Type at least one line above.";
+    else if (tpl.political && !state.payer.trim()) problem = "Fill in \"Paid for by\". Texas requires it on political advertising, and it goes on every frame.";
+    else {
+      for (const b of beats) {
+        const art = artwork(b);
+        const headIn = art.headPx * IN_PER_PX;
+        if (!b.logo && headIn < 6) { problem = "\"" + b.headline + "\" comes out " + headIn.toFixed(0) + " in tall, too small for the sidewalk. Shorten it."; break; }
+        if (b.subline && !art.subFits) { problem = "The second line \"" + b.subline + "\" is too long. Shorten it."; break; }
+        const peak = peaks[state.template + ":" + b.index] || 0;
+        if (peak > 0.35) { problem = "\"" + (b.headline || b.label) + "\" gets too bright (" + Math.round(peak * 100) + "% of the screen lit). Use fewer or shorter words."; break; }
+      }
+    }
+    if (problem) { st.className = "status warn"; st.textContent = problem; send.disabled = true; return; }
+    let smallest = Infinity, which = "";
+    beats.forEach((b) => { const a = artwork(b); if (a.headPx * IN_PER_PX < smallest) { smallest = a.headPx * IN_PER_PX; which = "headline"; } if (a.subPx && a.subPx * IN_PER_PX < smallest) { smallest = a.subPx * IN_PER_PX; which = "second line"; } });
+    const footIn = FOOT_PX * 0.72 * IN_PER_PX;
+    let text = "Smallest " + which + " is " + smallest.toFixed(0) + " in tall, readable to about " + Math.round(smallest * 10) + " ft.";
+    if (tpl.political) text += " Footer " + footIn.toFixed(1) + " in, readable to about " + Math.round(footIn * 10) + " ft.";
+    const total = beats.reduce((a, b) => a + b.seconds, 0);
+    text += " Show is " + total + " s.";
+    st.className = "status ok"; st.textContent = text; send.disabled = false;
+  }
+
+  function renderDots(tl) {
+    const holder = $("dots");
+    if (holder.children.length !== tl.beats.length) {
+      holder.innerHTML = "";
+      tl.beats.forEach((b, i) => { const d = document.createElement("button"); d.title = b.headline || b.label; d.onclick = () => jumpTo(i); holder.appendChild(d); });
+    }
+    [...holder.children].forEach((d, i) => d.classList.toggle("on", i === tl.i));
+  }
+  $("btn-prev").onclick = () => { const tl = timeline(); jumpTo((tl.i - 1 + tl.beats.length) % tl.beats.length); };
+  $("btn-next").onclick = () => { const tl = timeline(); jumpTo((tl.i + 1) % tl.beats.length); };
   $("mirror").onchange = () => stage.classList.toggle("mirror", $("mirror").checked);
-  $("btn-replay").onclick = () => { t0 = performance.now(); };
-  $("btn-add").onclick = () => { show.splice(current + 1, 0, { headline: "NEW SLIDE", subline: "", duration: 5, effect: "depth_drift", transition: "fade", color: "#ffffff", accent: "#f2a33a", political: show[current].political, payer: show[current].payer }); current++; renderBeats(); loadEditor(); };
-  $("btn-dup").onclick = () => { show.splice(current + 1, 0, JSON.parse(JSON.stringify(show[current]))); current++; renderBeats(); loadEditor(); };
-  $("btn-del").onclick = () => { if (show.length > 1) { show.splice(current, 1); current = Math.max(0, current - 1); renderBeats(); loadEditor(); } };
-  $("btn-render").onclick = () => { $("status").textContent = "In the real studio this renders every changed beat to MP4 with ffmpeg and stitches the show into one seamless loop."; };
-  $("btn-send").onclick = () => { $("status").textContent = "In the real studio this copies the rendered show to balcony.local, into the campaign folder, over Wi-Fi."; };
 
-  const skip = /t=(\d+)/.exec(location.hash || "");
-  if (skip) t0 = performance.now() - Number(skip[1]) * 1000;
-  const beat = /beat=(\d+)/.exec(location.hash || "");
-  if (beat) current = Math.max(0, Math.min(show.length - 1, Number(beat[1]) - 1));
-  renderBeats(); loadEditor(); requestAnimationFrame(frame);
+  // ---- form --------------------------------------------------------------------
+  function renderFields() {
+    const tpl = TEMPLATES[state.template], holder = $("fields");
+    holder.innerHTML = "";
+    tpl.fields.forEach((f) => {
+      const row = document.createElement("div"); row.className = "field";
+      const lbl = document.createElement("label"); lbl.textContent = f.label; lbl.htmlFor = "f-" + f.key;
+      const inp = document.createElement("input"); inp.type = "text"; inp.id = "f-" + f.key; inp.placeholder = f.placeholder; inp.maxLength = 60;
+      inp.value = state.values[state.template][f.key] || "";
+      inp.oninput = () => { state.values[state.template][f.key] = inp.value; artCache.clear(); updateStatus(); renderTune(); };
+      row.appendChild(lbl); row.appendChild(inp); holder.appendChild(row);
+    });
+    $("campaign-extras").hidden = !tpl.political;
+    $("crumb").textContent = "/ " + tpl.label;
+    document.querySelectorAll(".templates .chip").forEach((c) => c.classList.toggle("on", c.dataset.template === state.template));
+    state.accent = tpl.accent; $("g-accent").value = tpl.accent;
+    artCache.clear(); jumpTo(0); updateStatus(); renderTune();
+  }
+  document.querySelectorAll(".templates .chip").forEach((c) => { c.onclick = () => { state.template = c.dataset.template; renderFields(); }; });
+  $("payer").oninput = () => { state.payer = $("payer").value; $("payer").classList.toggle("required-missing", !state.payer.trim()); updateStatus(); };
+
+  // logo: knock out white, optionally invert first
+  function processLogo(img) {
+    const c = document.createElement("canvas"); c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height;
+    const ctx = c.getContext("2d"); ctx.drawImage(img, 0, 0);
+    const id = ctx.getImageData(0, 0, c.width, c.height), d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (state.logoInvert) { d[i] = 255 - d[i]; d[i + 1] = 255 - d[i + 1]; d[i + 2] = 255 - d[i + 2]; }
+      const lum = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      if (lum < 40) d[i + 3] = 0;                                   // near-black vanishes on the mesh anyway
+      if (d[i] > 235 && d[i + 1] > 235 && d[i + 2] > 235 && !state.logoInvert) { d[i + 3] = 0; }   // white background
+    }
+    ctx.putImageData(id, 0, 0);
+    return c;
+  }
+  let logoImage = null;
+  function loadLogo(file) {
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      logoImage = img; state.logo = processLogo(img); artCache.clear();
+      const drop = $("drop"); drop.classList.add("has"); drop.innerHTML = "";
+      const pv = document.createElement("img"); pv.src = state.logo.toDataURL(); drop.appendChild(pv);
+      drop.appendChild(document.createTextNode(file.name + " (click to change)"));
+      updateStatus(); renderTune();
+    };
+    img.src = URL.createObjectURL(file);
+  }
+  $("drop").onclick = () => $("logo").click();
+  $("logo").onchange = () => loadLogo($("logo").files[0]);
+  $("drop").ondragover = (e) => { e.preventDefault(); };
+  $("drop").ondrop = (e) => { e.preventDefault(); loadLogo(e.dataTransfer.files[0]); };
+  $("g-invert").onchange = () => { state.logoInvert = $("g-invert").checked; if (logoImage) { state.logo = processLogo(logoImage); artCache.clear(); const pv = $("drop").querySelector("img"); if (pv) pv.src = state.logo.toDataURL(); } };
+
+  // fine-tune
+  function renderTune() {
+    const tpl = TEMPLATES[state.template], holder = $("tune-rows"); holder.innerHTML = "";
+    tpl.beats.forEach((b, i) => {
+      const raw = (state.values[state.template][b.field] || "").trim();
+      if (!raw && !(b.wordmark && state.logo)) return;
+      const o = state.overrides[state.template][i] || {};
+      const row = document.createElement("div"); row.className = "tune-row";
+      const name = document.createElement("div"); name.className = "name"; name.textContent = (raw.split("|")[0] || b.field).toUpperCase(); row.appendChild(name);
+      const eff = document.createElement("select"); Object.keys(EFFECT_NAMES).forEach((k) => { const op = document.createElement("option"); op.value = k; op.textContent = EFFECT_NAMES[k]; eff.appendChild(op); }); eff.value = o.effect || b.effect;
+      const sec = document.createElement("input"); sec.type = "number"; sec.min = 3; sec.max = 20; sec.value = o.seconds || b.seconds; sec.title = "Seconds";
+      const tr = document.createElement("select"); [["fade", "Fade out"], ["particle_burst", "Particle burst"]].forEach(([v, t]) => { const op = document.createElement("option"); op.value = v; op.textContent = t; tr.appendChild(op); }); tr.value = o.transition || b.transition;
+      const save = () => { state.overrides[state.template][i] = { effect: eff.value, seconds: clamp(Number(sec.value) || b.seconds, 3, 20), transition: tr.value }; jumpTo(i); updateStatus(); };
+      eff.onchange = save; sec.onchange = save; tr.onchange = save;
+      row.appendChild(eff); row.appendChild(sec); row.appendChild(tr); holder.appendChild(row);
+    });
+  }
+  $("g-color").oninput = () => { state.color = $("g-color").value; artCache.clear(); };
+  $("g-accent").oninput = () => { state.accent = $("g-accent").value; };
+  $("g-footer").onchange = () => { state.footer = $("g-footer").value; artCache.clear(); updateStatus(); };
+  $("g-mesh").onchange = () => { state.mesh = $("g-mesh").value === "on"; };
+
+  // send: render then upload, one step (simulated here)
+  $("btn-send").onclick = () => {
+    const beats = activeBeats(), bar = $("progress"), fill = bar.firstElementChild, st = $("status");
+    bar.hidden = false; $("btn-send").disabled = true;
+    let i = 0;
+    const step = () => {
+      if (i < beats.length) { st.className = "status"; st.textContent = "Rendering " + (i + 1) + " of " + beats.length + ": " + (beats[i].headline || beats[i].label); fill.style.width = (100 * (i + 1) / (beats.length + 1)) + "%"; i++; setTimeout(step, 500); }
+      else { st.textContent = "Sending to balcony.local…"; fill.style.width = "100%"; setTimeout(() => { st.className = "status ok"; st.textContent = "Mock-up: the real studio would now have copied the show into the " + state.template + " folder on the Pi."; bar.hidden = true; fill.style.width = "0"; $("btn-send").disabled = false; }, 900); }
+    };
+    step();
+  };
+
+  // ---- go --------------------------------------------------------------------
+  const hash = location.hash || "";
+  const tm = /template=(\w+)/.exec(hash); if (tm && TEMPLATES[tm[1]]) state.template = tm[1];
+  const pm = /payer=([^,&]+)/.exec(hash); if (pm) { state.payer = decodeURIComponent(pm[1]); $("payer").value = state.payer; }
+  $("payer").classList.toggle("required-missing", !state.payer.trim());
+  document.fonts.ready.then(() => { artCache.clear(); updateStatus(); });
+  renderFields();
+  const bm = /beat=(\d+)/.exec(hash); const tsk = /t=([\d.]+)/.exec(hash);
+  if (bm) jumpTo(Number(bm[1]) - 1);
+  if (tsk) clock -= Number(tsk[1]) * 1000;
+  requestAnimationFrame(frame);
 })();
 </script>
 </body>
