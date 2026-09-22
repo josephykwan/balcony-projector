@@ -204,8 +204,10 @@ campaign-related; avoid Veo 3 (commercial-use restrictions at time of writing).
 - Pi side: plain Python 3.11+, Flask, mpv; apt-installable only (`python3-flask`,
   `mpv`). No other dependencies on the Pi. Keep the code runnable on Python 3.9 too
   (no `match`, no `X | Y` types); that is what the Mac used for testing has.
-- Studio side: Python + ffmpeg + Blender + headless Chromium (Playwright). Keep it a
-  folder in this repo, not a second project.
+- Studio side: the browser page needs nothing installed; the command-line tools need
+  Python 3 + ffmpeg, and the 3D renders need Blender (5.x tested). Keep it a folder in
+  this repo, not a second project. (Playwright was not needed: the browser encodes
+  video itself with WebCodecs.)
 - Everything the user sees is plain language; errors say what to do.
 - Settings live in `config.json`, not in code.
 - Testing on the Mac: no system Flask, so `python3 -m venv` + `pip install flask`;
@@ -234,13 +236,20 @@ at `/studio/` and accepts uploads with `replace=1&play=1`.
 Phase 3 — Slide builder (5b) with the seed campaign show. **Built as a template form**
 (Campaign, Halloween, Holiday) with the six canvas effects, footer, checks, animated
 pumpkin hero and artwork drop; renders and sends in one click. From 5c, the fake frame
-(neon / white / stone arch) and `text_emerge` are done as 2D canvas effects, plus a
-ghost figure and a Custom template. Not done: viewer-position calibration and true
-3D renders (Blender), which are only worth it if the 2D versions prove insufficient
-on the real screen.
+and `text_emerge` exist as 2D canvas effects in the browser studio, plus a ghost
+figure and a Custom template. **The true 3D pipeline is built too** (2026-09-22):
+`tools/studio/render3d/render.py` with `venue.json` calibration (viewer-position
+camera with lens shift), frame styles, and all six templates, rendered by Blender
+5.2 to PNG frames and encoded by ffmpeg. Tested on this Mac; not yet judged on the
+real mesh.
+
+Phase 4 — AI clip tool: `tools/studio/make_clip.py` is written for Runway
+(image-to-video, version header 2024-11-06) with Kling/Firefly stubs, refuses
+trademarked characters, runs `prepare.py`, previews, sends. **Untested against a live
+key**; expect a small fix on first real use.
 
 Phase 4 — Halloween 3D templates: `snow_depth`, `ghost_float`, `spider_lunge`. Then
-the AI clip pipeline (5d).
+the AI clip pipeline (5d). **Both built; see above.**
 
 Later: motion-triggered idle→reaction clips (pre-primed in mpv so the switch has no
 blank frame), GitHub packaging polish. (Sunset scheduling, date ranges and the health

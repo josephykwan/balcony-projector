@@ -115,6 +115,13 @@ It is converted on the laptop into exactly what the Pi plays (letterboxed on
 black, near-black made pure black, over-bright frames toned down, the end
 blended into the start so it loops without a jump) and uploaded.
 
+**3D illusions and the command line.** For the "coming out of the screen"
+effects (snow in depth, a ghost drifting through the frame, a spider lunging
+out, 3D letters, a light tunnel) there is a Blender renderer in
+`tools/studio/render3d`, calibrated to where people stand on the sidewalk, and
+command-line `prepare.py`, `send.py` and an AI clip helper `make_clip.py`. See
+`tools/studio/README.md`.
+
 If you would rather make content in a full editor, **Keynote** on a Mac is a
 good fit: black slide background, big white text with its built-in animations,
 then File, Export To, Movie, custom size 1280x800. Canva and CapCut work the

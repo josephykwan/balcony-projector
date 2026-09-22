@@ -1,0 +1,12 @@
+{
+  "_comment": "Where the screen is and where people look at it from. Feet. Used to place the render camera so the 3D illusion is correct from the sidewalk across the street.",
+  "picture_width_ft": 7.5,
+  "picture_height_ft": 4.6875,
+  "picture_bottom_ft": 11.0,
+  "viewer_distance_ft": 45.0,
+  "viewer_eye_ft": 5.2,
+  "viewer_offset_ft": 0.0,
+  "photo": "",
+  "frame": "neon",
+  "accent": "#f2a33a"
+}
