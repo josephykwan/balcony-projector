@@ -63,12 +63,15 @@ sudo ./uninstall.sh
 
 ## Using the phone page
 
-**On the screen now.** What is playing, with Pause, Next, Shuffle and Go dark.
-Go dark stops playback and leaves the screen black; turn the projector off by
-hand when you are done for the night.
+**On the screen now.** A live picture of what the projector is showing, taken
+from the player itself, with Pause, Next, Shuffle and Go dark. Go dark stops
+playback and leaves the screen black; turn the projector off by hand when you
+are done for the night.
 
-**Shows.** Tap Halloween or Campaign to loop everything in that folder. Movies
-are listed one by one; tap one to play it once.
+**Shows.** Each playlist is a row. Tap ▶ to play the whole thing on a loop, or
+tap the row to open it and pick one video to loop on its own. Movies play once
+and then the screen goes dark. Whatever was playing carries on after a power
+cut.
 
 **Evening schedule (optional).** The projector is switched by hand, but the
 schedule is still handy for changing what plays: for example the Halloween loop
@@ -78,14 +81,14 @@ show: `10-01` to `10-31` for Halloween every year, `2026-09-16` to `2026-11-03`
 for the campaign this year. The first matching season wins. If you start
 something yourself during the window, the schedule leaves it alone.
 
-**After a power cut** the Pi carries on with the last show by itself, so a
-blip never leaves a dark screen. Turn that off under Settings if you prefer.
+**Manage videos.** Upload a ready file, switch files on and off, reorder,
+remove. Make a new playlist, rename one, or delete one. A playlist is just a
+folder; "loops" playlists play round and round, "plays once" playlists play one
+video and then go dark.
 
-**Manage videos.** Upload from the phone, switch files on and off, reorder,
-remove.
-
-**Settings.** Sound output, quiet-hours dimming, location for sunset, phone
-alerts, a PIN, and, for a projector with a LAN port, PJLink control.
+**Settings.** Sound output, whether to carry on after a power cut, quiet-hours
+dimming, location for sunset, phone alerts, a PIN, and, for a projector with a
+LAN port, PJLink control.
 
 **PIN.** Anyone on your Wi-Fi can open the page. Set a 4 to 8 digit PIN in
 Settings and the page asks for it once per phone.
@@ -96,12 +99,15 @@ Open **`http://balcony.local:8080/studio/`** in Chrome, Edge or Safari on your
 laptop. Nothing to install; the page is served by the Pi and all the work
 happens in your browser.
 
-**Make a show.** Pick a template (Campaign, Halloween, Holiday), type a few
-lines, watch the preview play, press **Send to balcony**. The browser renders
-the show as a 1280x800 MP4 and uploads it; the Pi starts playing it straight
-away. Campaign shows require the "Paid for by" line and carry it on every
-frame. Halloween has a built-in animated pumpkin; drop your own artwork PNG in
-any template to use that instead, or a logo for the campaign wordmark.
+**Make a show.** Pick a template (Campaign, Halloween, Holiday, Custom), type a
+few lines, watch the preview play, press **Send to balcony**. The browser
+renders the show as a 1280x800 MP4 and uploads it; the Pi starts playing it
+straight away. Campaign shows require the "Paid for by" line and carry it on
+every frame. Halloween has a built-in animated pumpkin or ghost; drop your own
+artwork PNG in any template to use that instead, or a logo for the campaign
+wordmark. Under Fine-tune you can add a glowing "window" frame that the artwork
+appears to come out of, and the "Text emerge" effect pushes 3D-looking letters
+toward the street.
 
 **Send a video** made anywhere else: an AtmosFX clip, something exported from
 Keynote or Canva, a phone video. Drop it in, choose the playlist, press Send.

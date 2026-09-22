@@ -233,8 +233,11 @@ at `/studio/` and accepts uploads with `replace=1&play=1`.
 
 Phase 3 — Slide builder (5b) with the seed campaign show. **Built as a template form**
 (Campaign, Halloween, Holiday) with the six canvas effects, footer, checks, animated
-pumpkin hero and artwork drop; renders and sends in one click. Still to do from 5c:
-calibration, fake frame, `text_emerge` (Blender).
+pumpkin hero and artwork drop; renders and sends in one click. From 5c, the fake frame
+(neon / white / stone arch) and `text_emerge` are done as 2D canvas effects, plus a
+ghost figure and a Custom template. Not done: viewer-position calibration and true
+3D renders (Blender), which are only worth it if the 2D versions prove insufficient
+on the real screen.
 
 Phase 4 — Halloween 3D templates: `snow_depth`, `ghost_float`, `spider_lunge`. Then
 the AI clip pipeline (5d).
