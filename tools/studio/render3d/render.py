@@ -25,8 +25,12 @@ import os
 import random
 import sys
 
+import warnings
+
 import bpy
 from mathutils import Vector
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 W, H, FPS = 1280, 800, 30
 FT = 0.3048          # scene units are metres; the venue file is in feet
@@ -547,8 +551,31 @@ def main():
     import tempfile
     frames_dir = tempfile.mkdtemp(prefix="balcony-frames-")
     output_frames(scene, frames_dir, frames)
-    print("Rendering %s: %d frames at %dx%d" % (args.template, frames + 1, W, H))
-    bpy.ops.render.render(animation=True)
+    print("Rendering %s: %d frames at %dx%d (a minute or two)..." % (args.template, frames + 1, W, H), flush=True)
+    # Blender prints a line per saved frame; show a short progress line every 60 frames instead
+    import time as _time
+    started = _time.time()
+    state = {"last": -1}
+
+    def on_frame(scene_, _depsgraph=None):
+        f = scene_.frame_current
+        if f - state["last"] >= 60 or f >= frames:
+            state["last"] = f
+            done = (f + 1) / (frames + 1)
+            elapsed = _time.time() - started
+            left = elapsed / done - elapsed if done > 0.02 else 0
+            print("  %3d%%  frame %d of %d, about %d s left" % (done * 100, f, frames, left), file=sys.stderr, flush=True)
+    bpy.app.handlers.render_write.append(on_frame)
+    devnull = open(os.devnull, "w")
+    saved_stdout = os.dup(1)
+    sys.stdout.flush()
+    os.dup2(devnull.fileno(), 1)              # silence Blender's per-frame "Saved:" chatter
+    try:
+        bpy.ops.render.render(animation=True)
+    finally:
+        os.dup2(saved_stdout, 1)
+        os.close(saved_stdout)
+        devnull.close()
     encode_mp4(frames_dir, out)
     shutil.rmtree(frames_dir, ignore_errors=True)
     print("Done:", out)
