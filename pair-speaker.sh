@@ -107,6 +107,7 @@ for attempt in 1 2 3; do
 done
 sleep 3
 if bluetoothctl info "$MAC" | grep -q "Connected: yes"; then
+  command -v wpctl >/dev/null && wpctl set-volume @DEFAULT_AUDIO_SINK@ 1.0 >/dev/null 2>&1
   echo "Connected. The player now sends sound to $NAME whenever it is on."
   echo "On the phone page, Settings, \"Play sound through\" can stay on Automatic."
   status

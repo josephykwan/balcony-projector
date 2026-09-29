@@ -146,7 +146,16 @@ if [[ $BLUETOOTH -eq 1 ]]; then
   # without anyone logged in, so it is there for the player at boot.
   loginctl enable-linger "$RUN_USER"
   systemctl start "user@$RUN_UID.service" >/dev/null 2>&1 || true
+  systemctl --user -M "$RUN_USER@" start pipewire.socket pipewire-pulse.socket pipewire wireplumber >/dev/null 2>&1 || true
   for i in 1 2 3 4 5 6 7 8 9 10; do [[ -S /run/user/$RUN_UID/pipewire-0 ]] && break; sleep 1; done
+  # Switch the Bluetooth radio on now and at every boot
+  if [[ -f /etc/bluetooth/main.conf ]] && ! grep -q '^AutoEnable=true' /etc/bluetooth/main.conf; then
+    sed -i 's/^#\?AutoEnable=.*/AutoEnable=true/' /etc/bluetooth/main.conf
+    grep -q '^AutoEnable=true' /etc/bluetooth/main.conf || printf '\n[Policy]\nAutoEnable=true\n' >> /etc/bluetooth/main.conf
+    systemctl restart bluetooth >/dev/null 2>&1 || true
+  fi
+  rfkill unblock bluetooth >/dev/null 2>&1 || true
+  bluetoothctl power on >/dev/null 2>&1 || true
   if [[ -S /run/user/$RUN_UID/pipewire-0 ]]; then
     echo "    Sound server is running. Pair the speaker with:  ./pair-speaker.sh"
   else
