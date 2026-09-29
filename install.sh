@@ -3,12 +3,14 @@
 #
 # Run it from the folder that holds app.py, on the Pi:
 #
-#   sudo ./install.sh [--quiet-boot] [--share] [--projector-link] [--timezone America/Chicago]
+#   sudo ./install.sh [--quiet-boot] [--share] [--bluetooth] [--projector-link] [--timezone America/Chicago]
 #
 #   --quiet-boot      Hide the boot text, login prompt and rainbow splash so the
 #                     street only ever sees black or video. Backs up cmdline.txt.
 #   --share           Share ~/media on the Wi-Fi (Samba) so it shows up as a
 #                     network drive on a Mac or Windows laptop.
+#   --bluetooth       Let the Pi play sound through a Bluetooth speaker (installs
+#                     PipeWire). Pair the speaker afterwards with ./pair-speaker.sh.
 #   --projector-link  Only for projectors with a LAN port: give the Ethernet port
 #                     the fixed address 192.168.50.1 for a direct cable.
 #   --timezone ZONE   Set the Pi's clock zone, so the evening schedule is right.
@@ -27,9 +29,11 @@ fi
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUN_USER="${SUDO_USER:-pi}"
 RUN_HOME="$(getent passwd "$RUN_USER" | cut -d: -f6)"
+RUN_UID="$(id -u "$RUN_USER")"
 SERVICE=balcony-projector
 QUIET_BOOT=0
 SHARE=0
+BLUETOOTH=0
 PROJECTOR_LINK=0
 TIMEZONE=""
 
@@ -37,9 +41,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --quiet-boot) QUIET_BOOT=1 ;;
     --share) SHARE=1 ;;
+    --bluetooth) BLUETOOTH=1 ;;
     --projector-link) PROJECTOR_LINK=1 ;;
     --timezone) TIMEZONE="${2:-}"; shift ;;
-    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
   shift
@@ -55,7 +60,7 @@ apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-flask mpv openssl
 
 echo "==> Letting $RUN_USER use the display and sound"
-for grp in video render audio input; do
+for grp in video render audio input bluetooth; do
   getent group "$grp" >/dev/null && usermod -aG "$grp" "$RUN_USER"
 done
 
@@ -133,6 +138,22 @@ EOF
   systemctl restart smbd
 fi
 
+if [[ $BLUETOOTH -eq 1 ]]; then
+  echo "==> Installing Bluetooth sound (PipeWire)"
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq bluez pipewire pipewire-pulse wireplumber libspa-0.2-bluetooth
+  systemctl enable --now bluetooth >/dev/null 2>&1 || true
+  # The sound server runs in the user's own session; keep that session alive
+  # without anyone logged in, so it is there for the player at boot.
+  loginctl enable-linger "$RUN_USER"
+  systemctl start "user@$RUN_UID.service" >/dev/null 2>&1 || true
+  for i in 1 2 3 4 5 6 7 8 9 10; do [[ -S /run/user/$RUN_UID/pipewire-0 ]] && break; sleep 1; done
+  if [[ -S /run/user/$RUN_UID/pipewire-0 ]]; then
+    echo "    Sound server is running. Pair the speaker with:  ./pair-speaker.sh"
+  else
+    echo "    Sound server has not started yet; it will after a reboot."
+  fi
+fi
+
 if [[ $QUIET_BOOT -eq 1 ]]; then
   echo "==> Hiding boot text and the login prompt on the projector"
   if [[ -f $CMDLINE ]]; then
@@ -151,20 +172,21 @@ echo "==> Installing the $SERVICE service"
 cat > /etc/systemd/system/$SERVICE.service <<EOF
 [Unit]
 Description=Balcony Projector (video loop and phone remote)
-After=network-online.target
+After=network-online.target user@$RUN_UID.service
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=$RUN_USER
 Group=$RUN_USER
-SupplementaryGroups=video render audio input
+SupplementaryGroups=video render audio input$( getent group bluetooth >/dev/null && echo " bluetooth" )
 WorkingDirectory=$APP_DIR
 ExecStart=/usr/bin/python3 $APP_DIR/app.py
 Restart=always
 RestartSec=3
 Environment=PYTHONUNBUFFERED=1
 Environment=HOME=$RUN_HOME
+Environment=XDG_RUNTIME_DIR=/run/user/$RUN_UID
 StandardOutput=journal
 StandardError=journal
 
@@ -183,6 +205,9 @@ echo "Studio (laptop):  https://$(hostname).local:8443/studio/   (accept the cer
 echo "Videos go in:  $RUN_HOME/media/halloween, campaign, movies"
 if [[ $SHARE -eq 1 ]]; then
   echo "Network drive: smb://$(hostname).local/media  (Mac: Finder > Go > Connect to Server, connect as Guest)"
+fi
+if [[ $BLUETOOTH -eq 1 ]]; then
+  echo "Speaker:       put it in pairing mode, then run  ./pair-speaker.sh"
 fi
 echo "Logs:          journalctl -u $SERVICE -f"
 echo "Reboot once so the screen resolution (and quiet boot) take effect:  sudo reboot"

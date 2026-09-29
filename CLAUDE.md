@@ -27,6 +27,10 @@ work" section at the bottom, starting with Phase 1.
 - Player: Raspberry Pi 4 Model B, 2 GB RAM, Raspberry Pi OS Lite 64-bit, console boot
   (no desktop), hostname `balcony`. Micro-HDMI (port next to the power jack) straight
   into the projector's HDMI. Official 5V 3A supply, case with heatsink/fan.
+- Sound: the projector has only a 1 W speaker. Sound comes from the Pi: a Bluetooth
+  speaker (`install.sh --bluetooth` installs PipeWire in the `pi` user's lingering
+  session, the service gets `XDG_RUNTIME_DIR`, `pair-speaker.sh` pairs) or a wired
+  speaker on the Pi's 3.5 mm jack / the projector's audio-out.
 - Audience: people on the sidewalk across the street, roughly 30–60 ft away. Drivers
   pass by, so no flashing and no sudden motion.
 - Location: Dallas, TX (America/Chicago). Rented apartment.

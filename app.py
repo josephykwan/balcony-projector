@@ -750,6 +750,13 @@ class Player:
             if not (self.mpv and self.mpv.alive()):
                 return []
             devices = self.mpv.get("audio-device-list") or []
+        # Keep the list short enough for a phone: drop outputs nobody uses here, and
+        # when the PipeWire sound server is running (Bluetooth speakers), hide the raw
+        # ALSA entries, which PipeWire has taken over.
+        skip = ("jack", "sdl", "sndio", "pcm", "null", "openal", "oss")
+        devices = [d for d in devices if d.get("name") and d["name"].split("/")[0] not in skip]
+        if any(d["name"].startswith("pipewire") for d in devices):
+            devices = [d for d in devices if d["name"].startswith("pipewire")]
         return [{"name": d.get("name"), "description": d.get("description")} for d in devices]
 
     def apply_dim(self, force=False):

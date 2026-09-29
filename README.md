@@ -49,6 +49,7 @@ sudo ./install.sh --quiet-boot --share --timezone America/Chicago
   sees black or video.
 - `--share` makes the `~/media` folder show up as a network drive on your laptop
   (see "Adding videos").
+- `--bluetooth` lets the Pi play sound through a Bluetooth speaker (see "Sound").
 - `--timezone` sets the Pi's clock so the schedule fires at the right time.
 - `--projector-link` is only for projectors with a LAN port. The Optoma has none.
 
@@ -128,6 +129,35 @@ then File, Export To, Movie, custom size 1280x800. Canva and CapCut work the
 same way. Whatever you use, send the result through the studio's "Send a
 video" tab so it arrives in the right format.
 
+## Sound
+
+The projector has only a tiny 1 W speaker, so sound comes from the Pi instead.
+Two ways:
+
+**A Bluetooth speaker.** Install the sound server once, then pair the speaker
+while it is in pairing mode (usually hold its Bluetooth button until the light
+blinks), both on the Pi:
+
+```bash
+sudo ./install.sh --bluetooth
+./pair-speaker.sh
+```
+
+It lists what it found; pick the speaker. From then on the Pi connects to it
+whenever it is switched on, and sound follows it automatically. `./pair-speaker.sh
+--status` shows whether it is connected; `--forget` unpairs it. Keep the speaker
+within a room or so of the Pi; Bluetooth and Wi-Fi share one antenna on the Pi, so
+a weak link can make the picture stutter. Many speakers switch themselves off
+after a while with no sound, so use "Go dark" rather than silent videos if that
+bothers you.
+
+**A cable.** A powered speaker on the Pi's 3.5 mm headphone jack, or on the
+projector's own audio-out jack (sound travels over the HDMI cable). Then choose
+the output under Settings, "Play sound through": Headphones for the jack, HDMI for
+the projector.
+
+Sound levels: the phone page's volume slider, and the speaker's own buttons.
+
 ## Other ways to add videos
 
 Every file on the Pi must be **H.264 MP4, 1280x800, 30 frames a second**, and
@@ -200,8 +230,9 @@ Things that only show up on the real hardware, and where to change them:
   off, and picks the graphics device with the HDMI ports by itself. If the
   projector is on the second micro-HDMI port, add `--drm-connector=HDMI-A-2` to
   `mpv_video_args` in `config.json`. If video stutters, remove `--hwdec=auto-safe`.
-- **No sound.** Pick the HDMI output under Settings, or set `audio_device` in
-  `config.json` (run `mpv --audio-device=help` on the Pi to see the names).
+- **No sound.** Pick the output under Settings, or set `audio_device` in
+  `config.json` (run `mpv --audio-device=help` on the Pi to see the names). For a
+  Bluetooth speaker, `./pair-speaker.sh --status`.
 - **Wrong size or edges cut off.** The installer sets 1280x800 at boot. Check
   `cat /boot/firmware/cmdline.txt` contains `video=HDMI-A-1:1280x800@60`, and
   that the projector's own aspect setting is "native" or "16:10".
@@ -219,6 +250,7 @@ Things that only show up on the real hardware, and where to change them:
 - `templates/index.html` is the phone page.
 - `config.json` holds the settings. Edit it and restart the service, or use the
   phone page. `state.json` remembers what was playing.
+- `pair-speaker.sh` pairs a Bluetooth speaker (after `install.sh --bluetooth`).
 - `tools/studio/` is the studio: one page (`slides/index.html`), two bundled
   fonts, and the small MP4 writer it uses. The Pi serves it at `/studio/`.
 - `tests/smoke_test.py` runs the whole Pi side against real mpv and ffmpeg, a
