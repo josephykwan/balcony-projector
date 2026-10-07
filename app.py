@@ -431,7 +431,13 @@ class Player:
         device = self.cfg.data.get("audio_device") or "auto"
         if device != "auto":
             args.append("--audio-device=" + device)
-        args += list(self.cfg.data.get("mpv_extra_args", []))
+        extra = list(self.cfg.data.get("mpv_extra_args", []))
+        # With the PipeWire sound server running (Bluetooth speakers), talk to it directly:
+        # letting mpv probe PulseAudio as well has crashed it inside libpulse.
+        runtime = os.environ.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid()
+        if os.path.exists(os.path.join(runtime, "pipewire-0")) and not any(a.startswith("--ao=") for a in args + extra):
+            args.append("--ao=pipewire")
+        args += extra
         return args
 
     def start(self):
