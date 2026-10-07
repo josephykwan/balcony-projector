@@ -99,20 +99,25 @@ fi
 
 MAC="${PICK%%|*}"; NAME="${PICK#*|}"
 echo "Pairing with $NAME..."
-bluetoothctl pair "$MAC" 2>&1 | grep -Ei "pair|fail|error" | tail -2
-bluetoothctl trust "$MAC" >/dev/null
-for attempt in 1 2 3; do
-  if bluetoothctl connect "$MAC" 2>&1 | grep -q "Connection successful"; then break; fi
-  sleep 3
-done
-sleep 3
-if bluetoothctl info "$MAC" | grep -q "Connected: yes"; then
+# One bluetoothctl session for the whole job: the agent that answers the
+# speaker's pairing request only lives as long as the session, and freshly
+# found devices drop off the list within half a minute, so rescan right before.
+LOG="$({ echo "agent NoInputNoOutput"; echo "default-agent"; echo "scan on"; sleep 4
+         echo "pair $MAC"; sleep 12; echo "trust $MAC"; sleep 1
+         echo "connect $MAC"; sleep 10; echo "scan off"; echo "info $MAC"; sleep 1; echo "quit"; } \
+       | bluetoothctl 2>&1 | tr -d '\r' | sed 's/\x1b\[[0-9;]*m//g')"
+if echo "$LOG" | grep -q "Connected: yes"; then
   command -v wpctl >/dev/null && wpctl set-volume @DEFAULT_AUDIO_SINK@ 1.0 >/dev/null 2>&1
   echo "Connected. The player now sends sound to $NAME whenever it is on."
   echo "On the phone page, Settings, \"Play sound through\" can stay on Automatic."
   status
-else
+elif echo "$LOG" | grep -q "Pairing successful"; then
   echo "Paired, but it did not connect. Turn the speaker off and on again; it should connect on its own."
-  echo "If not, run  ./pair-speaker.sh --status  to check, or pair again."
+  echo "If not, run  ./pair-speaker.sh --status  to check."
+  exit 1
+else
+  reason="$(echo "$LOG" | grep -iE "failed|error|not available" | head -2)"
+  echo "Pairing did not work. ${reason:-The speaker stopped answering.}"
+  echo "Put the speaker back into pairing mode (hold its Bluetooth button until the light blinks) and run this again."
   exit 1
 fi
