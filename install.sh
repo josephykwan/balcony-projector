@@ -146,7 +146,19 @@ if [[ $BLUETOOTH -eq 1 ]]; then
   # without anyone logged in, so it is there for the player at boot.
   loginctl enable-linger "$RUN_USER"
   systemctl start "user@$RUN_UID.service" >/dev/null 2>&1 || true
+  # WirePlumber switches Bluetooth off when nobody is sitting at the Pi (no "seat"); keep it on.
+  install -d -o "$RUN_USER" -g "$RUN_USER" "$RUN_HOME/.config/wireplumber/wireplumber.conf.d"
+  cat > "$RUN_HOME/.config/wireplumber/wireplumber.conf.d/50-balcony-bluetooth.conf" <<'WPEOF'
+# balcony-projector: no desktop or seat here, so keep Bluetooth audio on anyway
+wireplumber.profiles = {
+  main = {
+    monitor.bluez.seat-monitoring = disabled
+  }
+}
+WPEOF
+  chown -R "$RUN_USER:$RUN_USER" "$RUN_HOME/.config/wireplumber"
   systemctl --user -M "$RUN_USER@" start pipewire.socket pipewire-pulse.socket pipewire wireplumber >/dev/null 2>&1 || true
+  systemctl --user -M "$RUN_USER@" restart wireplumber >/dev/null 2>&1 || true
   for i in 1 2 3 4 5 6 7 8 9 10; do [[ -S /run/user/$RUN_UID/pipewire-0 ]] && break; sleep 1; done
   # Switch the Bluetooth radio on now and at every boot
   if [[ -f /etc/bluetooth/main.conf ]] && ! grep -q '^AutoEnable=true' /etc/bluetooth/main.conf; then

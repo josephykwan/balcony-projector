@@ -232,7 +232,9 @@ Things that only show up on the real hardware, and where to change them:
   `mpv_video_args` in `config.json`. If video stutters, remove `--hwdec=auto-safe`.
 - **No sound.** Pick the output under Settings, or set `audio_device` in
   `config.json` (run `mpv --audio-device=help` on the Pi to see the names). For a
-  Bluetooth speaker, `./pair-speaker.sh --status`.
+  Bluetooth speaker, `./pair-speaker.sh --status`. If pairing ends in
+  "br-connection-profile-unavailable", the sound server has Bluetooth switched
+  off for headless use; re-run `sudo ./install.sh --bluetooth`, which fixes that.
 - **Wrong size or edges cut off.** The installer sets 1280x800 at boot. Check
   `cat /boot/firmware/cmdline.txt` contains `video=HDMI-A-1:1280x800@60`, and
   that the projector's own aspect setting is "native" or "16:10".
