@@ -802,9 +802,59 @@
     }
     throw new Error("This browser can't make H.264 video. Use Chrome or Edge.");
   }
-  async function encodeFrames(totalFrames, drawFrame, onProgress) {
+  // ---- sound: decoded in the browser, encoded as AAC (or Opus), muxed next to the video ----
+  const AUDIO_RATE = 48000;
+  async function decodeAudio(file, seconds) {
+    // returns { channels: [Float32Array...], rate } or null when the file has no usable sound
+    if (!("AudioEncoder" in window)) return null;
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: AUDIO_RATE });
+      let buf;
+      try { buf = await ac.decodeAudioData(await file.arrayBuffer()); } finally { ac.close().catch(() => {}); }
+      if (!buf || !buf.numberOfChannels || !buf.length) return null;
+      const nch = Math.min(2, buf.numberOfChannels), len = Math.min(buf.length, Math.round(seconds * buf.sampleRate));
+      const channels = [];
+      for (let c = 0; c < nch; c++) channels.push(buf.getChannelData(c).slice(0, len));
+      let peak = 0;
+      for (const ch of channels) for (let i = 0; i < ch.length; i += 97) peak = Math.max(peak, Math.abs(ch[i]));
+      if (peak < 0.002) return null;                       // a silent track isn't worth carrying
+      return { channels, rate: buf.sampleRate };
+    } catch (e) {
+      console.log("balcony-studio: no sound track", e && e.message);
+      return null;
+    }
+  }
+  async function pickAudioCodec(nch, rate) {
+    for (const [codec, mux] of [["mp4a.40.2", "aac"], ["opus", "opus"]]) {
+      const cfg = { codec, numberOfChannels: nch, sampleRate: rate, bitrate: 160000 };
+      try { const s = await AudioEncoder.isConfigSupported(cfg); if (s.supported) return { cfg, mux }; } catch (e) {}
+    }
+    return null;
+  }
+  async function encodeAudio(muxer, audio, codec) {
+    let failed = null;
+    const enc = new AudioEncoder({ output: (chunk, meta) => muxer.addAudioChunk(chunk, meta), error: (e) => { failed = e; } });
+    enc.configure(codec.cfg);
+    const nch = audio.channels.length, total = audio.channels[0].length, step = 1024;
+    for (let off = 0; off < total; off += step) {
+      if (failed) throw failed;
+      const n = Math.min(step, total - off), data = new Float32Array(n * nch);
+      for (let c = 0; c < nch; c++) data.set(audio.channels[c].subarray(off, off + n), c * n);
+      const ad = new AudioData({ format: "f32-planar", sampleRate: audio.rate, numberOfFrames: n, numberOfChannels: nch,
+                                 timestamp: Math.round(off * 1e6 / audio.rate), data });
+      enc.encode(ad); ad.close();
+      while (enc.encodeQueueSize > 8) await sleep(2);
+    }
+    await enc.flush(); enc.close();
+  }
+  async function encodeFrames(totalFrames, drawFrame, onProgress, audio) {
     const cfg = await pickCodec();
-    const muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: "avc", width: W, height: H }, fastStart: "in-memory", firstTimestampBehavior: "offset" });
+    const acodec = audio ? await pickAudioCodec(audio.channels.length, audio.rate) : null;
+    const muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: "avc", width: W, height: H },
+      audio: acodec ? { codec: acodec.mux, numberOfChannels: audio.channels.length, sampleRate: audio.rate } : undefined,
+      fastStart: "in-memory", firstTimestampBehavior: "offset" });
+    if (acodec) await encodeAudio(muxer, audio, acodec);
+    else if (audio) console.log("balcony-studio: this browser can't encode sound; sending the picture only");
     let failed = null;
     const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => { failed = e; } });
     encoder.configure(cfg);
@@ -821,7 +871,9 @@
     await encoder.flush();
     encoder.close();
     muxer.finalize();
-    return new Blob([muxer.target.buffer], { type: "video/mp4" });
+    const blob = new Blob([muxer.target.buffer], { type: "video/mp4" });
+    blob.hasSound = !!acodec;
+    return blob;
   }
 
   async function renderShow(onProgress) {
@@ -939,6 +991,15 @@
       }
     };
     for (let i = 0; i < blend; i++) { await grab(i); head.push(rctx.getImageData(0, 0, W, H)); }
+    // the sound track, cut to the same length; for a loop its tail is blended into its head like the picture
+    const audio = await decodeAudio(file, frames / FPS);
+    if (audio && blend) {
+      const L = Math.min(Math.round(blend / FPS * audio.rate), Math.floor(audio.channels[0].length / 4));
+      for (const ch of audio.channels) {
+        const n = ch.length;
+        for (let k = 0; k < L; k++) { const a = (k + 1) / (L + 1); ch[n - L + k] = ch[n - L + k] * (1 - a) + ch[k] * a; }
+      }
+    }
     const blob = await encodeFrames(frames, async (i) => {
       await grab(i);
       if (blend && i >= frames - blend) {
@@ -947,9 +1008,9 @@
         for (let p = 0; p < cd.length; p += 4) { cd[p] = cd[p] * (1 - a) + hd[p] * a; cd[p + 1] = cd[p + 1] * (1 - a) + hd[p + 1] * a; cd[p + 2] = cd[p + 2] * (1 - a) + hd[p + 2] * a; }
         rctx.putImageData(cur, 0, 0);
       }
-    }, onProgress);
+    }, onProgress, audio);
     URL.revokeObjectURL(v.src);
-    return { blob, peak, seconds: dur };
+    return { blob, peak, seconds: dur, sound: audio ? (blob.hasSound ? "yes" : "unsupported") : "none" };
   }
 
   async function sendVideo() {
@@ -963,7 +1024,10 @@
       say("vstatus", "Sending " + Math.round(out.blob.size / 1e6 * 10) / 10 + " MB to the Pi…");
       const data = await sendToPi(out.blob, name, $("vplaylist").value, (f) => setProgress("vprogress", 0.85 + 0.15 * f));
       setProgress("vprogress", 1);
-      const note = out.peak > 0.35 ? " Some frames were brighter than the mesh likes and were toned down." : "";
+      let note = out.peak > 0.35 ? " Some frames were brighter than the mesh likes and were toned down." : "";
+      if (out.sound === "yes") note += " Sound included.";
+      else if (out.sound === "unsupported") note += " This browser can't encode sound, so it went without; Chrome on a Mac or Windows laptop can.";
+      else note += " (No sound track in that file.)";
       say("vstatus", (data.playing ? "Sent. The Pi is playing it now." : "Sent to the Pi.") + note, "ok");
     } catch (e) {
       say("vstatus", e.message, "warn");

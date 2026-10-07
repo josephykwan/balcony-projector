@@ -114,7 +114,9 @@ toward the street.
 Keynote or Canva, a phone video. Drop it in, choose the playlist, press Send.
 It is converted on the laptop into exactly what the Pi plays (letterboxed on
 black, near-black made pure black, over-bright frames toned down, the end
-blended into the start so it loops without a jump) and uploaded.
+blended into the start so it loops without a jump, sound kept as AAC) and
+uploaded. Chrome or Edge on a Mac or Windows laptop can encode the sound;
+a browser that cannot sends the picture only and says so.
 
 **3D illusions and the command line.** For the "coming out of the screen"
 effects (snow in depth, a ghost drifting through the frame, a spider lunging
