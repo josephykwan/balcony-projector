@@ -623,7 +623,7 @@
         if (el.dataset.file) on = p.file === el.dataset.file && (p.mode === "once" || p.single);
         else on = p.mode === "loop" && !p.single;
       }
-      el.classList.toggle("playing", on);
+      el.classList.toggle("playing", on && !mixing);
     });
   }
 
