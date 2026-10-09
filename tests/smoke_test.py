@@ -467,6 +467,25 @@ def main():
         _, s = api.call("/api/status")
         check("go dark", st == 200 and s["player"]["mode"] == "off", s["player"])
 
+        # --- several playlists together, and the alignment pattern -----------
+        st, body = api.call("/api/play", {"playlist": "halloween+campaign"})
+        check("play two playlists together", st == 200 and body["ok"] and body["player"]["playlist"] == "halloween+campaign"
+              and body["player"]["mode"] == "loop", body)
+        s = api.wait(lambda s: s["player"]["playlist_count"] >= 2, 10, "the mix to load")
+        check("mix holds files from both", s["player"]["playlist_count"] >= 2 and not s["player"]["show"], s["player"])
+        st, body = api.call("/api/play", {"playlist": "halloween+nope"})
+        check("mix with an unknown playlist refused", st == 400 and "nope" in body["error"], body)
+        st, body = api.call("/api/pattern", {"kind": "grid"})
+        check("grid test pattern", st == 200 and body["player"]["mode"] == "pattern" and body["player"]["pattern"] == "grid", body)
+        time.sleep(1.5)
+        _, s = api.call("/api/status")
+        check("pattern stays on screen", s["player"]["mode"] == "pattern" and s["player"]["file"] == "pattern-grid.png", s["player"])
+        st, body = api.call("/api/pattern", {"kind": "plaid"})
+        check("unknown pattern refused", st == 400, body)
+        st, body = api.call("/api/stop", {})
+        _, s = api.call("/api/status")
+        check("dark after the pattern", s["player"]["mode"] == "off" and s["player"]["pattern"] is None, s["player"])
+
         # --- projector --------------------------------------------------
         s = api.wait(lambda s: s["projector"]["reachable"], 10, "projector poll")
         check("fake projector reachable with password", s["projector"]["reachable"] and s["projector"]["power"] == "off", s["projector"])

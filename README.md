@@ -72,7 +72,9 @@ are done for the night.
 **Shows.** Each playlist is a row. Tap ▶ to play the whole thing on a loop, or
 tap the row to open it and pick one video to loop on its own. Movies play once
 and then the screen goes dark. Whatever was playing carries on after a power
-cut.
+cut. **Play several…** lets you tick two or more playlists and loop them one
+after another (Halloween and Holiday together, say); the schedule can do the
+same if you set its playlist to `halloween+holiday`.
 
 **Evening schedule (optional).** The projector is switched by hand, but the
 schedule is still handy for changing what plays: for example the Halloween loop
@@ -87,9 +89,10 @@ remove. Make a new playlist, rename one, or delete one. A playlist is just a
 folder; "loops" playlists play round and round, "plays once" playlists play one
 video and then go dark.
 
-**Settings.** Sound output, whether to carry on after a power cut, quiet-hours
-dimming, location for sunset, phone alerts, a PIN, and, for a projector with a
-LAN port, PJLink control.
+**Settings.** A white screen or grid for lining up the projector (keystone,
+focus, framing; press Go dark when finished), sound output, whether to carry on
+after a power cut, quiet-hours dimming, location for sunset, phone alerts, a PIN,
+and, for a projector with a LAN port, PJLink control.
 
 **PIN.** Anyone on your Wi-Fi can open the page. Set a 4 to 8 digit PIN in
 Settings and the page asks for it once per phone.
@@ -251,7 +254,8 @@ Things that only show up on the real hardware, and where to change them:
   pipeline that is off by default (`processing.enabled` in `config.json`),
   because conversion belongs on the laptop.
 - `solar.py` works out sunrise and sunset.
-- `templates/index.html` is the phone page.
+- `templates/index.html` is the phone page. `static/` holds the two test
+  pattern pictures.
 - `config.json` holds the settings. Edit it and restart the service, or use the
   phone page. `state.json` remembers what was playing.
 - `pair-speaker.sh` pairs a Bluetooth speaker (after `install.sh --bluetooth`).

@@ -459,7 +459,7 @@ class Player:
             except (ValueError, MPVError) as exc:
                 self.last_error = str(exc)
                 self.state.update(mode="off")
-        elif self.state.get("mode") == "once":
+        elif self.state.get("mode") in ("once", "pattern"):
             self.state.update(mode="off", file=None)
 
     def _launch(self):
@@ -550,12 +550,12 @@ class Player:
                         self.play(self.state.get("playlist"), self.state.get("file") or None, loop=bool(self.state.get("file")))
                     except (ValueError, MPVError) as exc:
                         self.last_error = str(exc)
-                elif self.state.get("mode") == "once":
+                elif self.state.get("mode") in ("once", "pattern"):
                     self.state.update(mode="off", file=None)
 
     def _stalled(self):
         """True when something should be playing but the clock hasn't moved for 30 s."""
-        if self.state.get("mode") == "off":
+        if self.state.get("mode") in ("off", "pattern"):      # a still test pattern has no clock
             self._stall_pos, self._stall_since = None, time.time()
             return False
         if self.mpv.get("pause", False) or self.mpv.get("idle-active", False):
@@ -600,6 +600,8 @@ class Player:
                 if mode == "once":
                     log.info("Movie finished, screen is dark")
                     self._went_dark()
+                elif mode == "pattern":
+                    self._went_dark()
                 elif mode == "loop":
                     label = self.state.get("playlist")
                     self.last_error = ("Nothing in '%s' would play, so the screen went dark. "
@@ -630,7 +632,11 @@ class Player:
 
     def play(self, playlist, filename=None, loop=False):
         """Play a whole playlist (loops unless it is a play-once list), one file
-        once, or one file looping on its own (loop=True)."""
+        once, one file looping on its own (loop=True), or several playlists
+        together ("halloween+holiday": everything switched on in each, looping)."""
+        names = [n for n in str(playlist or "").split("+") if n]
+        if len(names) > 1 and not filename:
+            return self._play_mix(names)
         info = self.lib.playlist(playlist)
         if info is None:
             raise ValueError("There is no playlist called '%s'." % playlist)
@@ -671,10 +677,27 @@ class Player:
                                      % (info["label"], info["dir"]))
                 if len(paths) == 1:
                     loop_file = "inf"
+        self._load(paths, mode, loop_file, segments, playlist, filename)
 
+    def _play_mix(self, names):
+        """Everything switched on in each named playlist, one after another, looping."""
+        paths, labels = [], []
+        for name in names:
+            info = self.lib.playlist(name)
+            if info is None:
+                raise ValueError("There is no playlist called '%s'." % name)
+            labels.append(info["label"])
+            paths += self.lib.playable(name)
+        if not paths:
+            raise ValueError("Nothing in %s is switched on, so there is nothing to play together."
+                             % " + ".join(labels))
+        self._load(paths, "loop", "inf" if len(paths) == 1 else "no", [], "+".join(names), None)
+
+    def _load(self, paths, mode, loop_file, segments, playlist, filename):
         with self.lock:
             self._need_mpv()
             self.ignore_idle = True
+            self.mpv.set("image-display-duration", int(self.cfg.data.get("image_seconds", 12)))
             self.mpv.set("loop-file", loop_file)
             self.mpv.set("loop-playlist", "inf" if mode == "loop" else "no")
             self.mpv.command("loadfile", paths[0], "replace")
@@ -686,18 +709,48 @@ class Player:
             self.ignore_idle = False
             self.last_error = ""
             self.segments = segments
-            self.state.update(mode=mode, playlist=playlist, file=filename or None)
+            self.state.update(mode=mode, playlist=playlist, file=filename or None, pattern=None)
         self._mute(False)
         log.info("Playing %s (%s, %d file%s%s)", playlist, mode, len(paths),
                  "" if len(paths) == 1 else "s", ", stitched show" if segments else "")
 
+    PATTERNS = {"white": "pattern-white.png", "grid": "pattern-grid.png"}
+
+    def pattern(self, kind):
+        """Hold a still test pattern on screen (for keystone, focus and framing)
+        until something else is played or the screen goes dark. The pictures
+        are shipped with the code; the Pi draws nothing itself."""
+        if kind not in self.PATTERNS:
+            raise ValueError("No test pattern called '%s'. Choose white or grid." % kind)
+        path = os.path.join(BASE_DIR, "static", self.PATTERNS[kind])
+        if not os.path.isfile(path):
+            raise ValueError("The test pattern picture is missing from %s." % os.path.dirname(path))
+        with self.lock:
+            self._need_mpv()
+            self.ignore_idle = True
+            self.mpv.set("loop-file", "no")
+            self.mpv.set("loop-playlist", "no")
+            self.mpv.set("image-display-duration", "inf")
+            self.mpv.command("loadfile", path, "replace")
+            self.mpv.set("pause", False)
+            self.ignore_idle = False
+            self.last_error = ""
+            self.segments = []
+            self.state.update(mode="pattern", file=None, pattern=kind)
+        self._mute(False)
+        log.info("Showing the %s test pattern", kind)
+
     def stop(self):
         with self.lock:
             self.ignore_idle = True
-            self.state.update(mode="off", file=None)
+            self.state.update(mode="off", file=None, pattern=None)
             self.segments = []
             if self.mpv and self.mpv.alive():
                 self.mpv.command("stop")
+                try:
+                    self.mpv.set("image-display-duration", int(self.cfg.data.get("image_seconds", 12)))
+                except MPVError:
+                    pass
         self._mute(True)
         log.info("Stopped, screen is dark")
 
@@ -802,6 +855,7 @@ class Player:
             "playlist_pos": None,
             "show": bool(self.segments),
             "single": bool(self.state.get("file")) and self.state.get("mode") == "loop",
+            "pattern": self.state.get("pattern") if self.state.get("mode") == "pattern" else None,
             "shuffle": bool(self.state.get("shuffle")),
             "dim_level": self.dim_level,
         }
@@ -1480,6 +1534,15 @@ def create_app(cfg, state, lib, processor, player, projector, scheduler, alerts,
         body = request.get_json(silent=True) or {}
         try:
             player.play(str(body.get("playlist", "")), body.get("file") or None, loop=bool(body.get("loop")))
+        except (ValueError, MPVError) as exc:
+            return fail(str(exc))
+        return jsonify({"ok": True, "player": player.status()})
+
+    @app.route("/api/pattern", methods=["POST"])
+    def api_pattern():
+        body = request.get_json(silent=True) or {}
+        try:
+            player.pattern(str(body.get("kind", "white")))
         except (ValueError, MPVError) as exc:
             return fail(str(exc))
         return jsonify({"ok": True, "player": player.status()})

@@ -46,6 +46,13 @@
   .item.playable { cursor: pointer; }
   .item.playing { outline: 2px solid var(--accent); }
   .item.off { opacity: .55; }
+  .item.picked { outline: 2px solid var(--accent); background: rgba(240, 160, 60, .12); }
+  .item .tick { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--muted); display: flex; align-items: center; justify-content: center; font-size: 15px; color: #000; flex: none; }
+  .item.picked .tick { background: var(--accent); border-color: var(--accent); }
+  .cardhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .cardhead .label { margin: 0; }
+  .mixbar { display: flex; gap: 8px; margin-top: 10px; }
+  .mixbar button { flex: 1; }
   .item .name { flex: 1; min-width: 0; }
   .item .name b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item .sub { color: var(--muted); font-size: 14px; display: block; }
@@ -137,8 +144,13 @@
   </section>
 
   <section class="card">
-    <div class="label">Shows</div>
+    <div class="cardhead"><div class="label">Shows</div><button class="tiny" id="btn-mix">Play several…</button></div>
+    <div class="muted" id="mix-hint" hidden style="margin-bottom:8px">Tap the shows you want, then press Play together. They loop one after another.</div>
     <div class="list" id="playlists"><div class="muted">Loading…</div></div>
+    <div class="mixbar" id="mixbar" hidden>
+      <button class="primary" id="btn-mix-go">Play together</button>
+      <button id="btn-mix-cancel">Cancel</button>
+    </div>
     <div class="muted" id="processing-note" style="margin-top:10px" hidden></div>
   </section>
 
@@ -230,6 +242,15 @@
         </select></label>
       <label class="check"><input type="checkbox" id="set-proj-mute"> Blank the projector while the screen is dark (less light spill)</label>
       <label class="field">Remind me about the lamp after this many hours <input type="number" id="set-lamp-hours" min="100" step="100"></label>
+    </div>
+
+    <div class="section">
+      <h3>Line up the projector</h3>
+      <div class="muted" style="margin-bottom:8px">A still picture for keystone, focus and framing. It stays up until you press Go dark or play a show. The white one is bright, so keep it short.</div>
+      <div class="row">
+        <button id="btn-pattern-white">White screen</button>
+        <button id="btn-pattern-grid">Grid</button>
+      </div>
     </div>
 
     <div class="section">
@@ -376,14 +397,17 @@
     return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(sec).padStart(2, "0");
   }
   function labelFor(name) {
+    if (name && name.indexOf("+") >= 0) return name.split("+").map(labelFor).join(" + ");
     if (mediaInfo) { const p = mediaInfo.playlists.find((x) => x.name === name); if (p) return p.label; }
     return name || "";
   }
   function fileLabel(playlistName, fileName) {
     if (mediaInfo) {
-      const p = mediaInfo.playlists.find((x) => x.name === playlistName);
-      const f = p && p.files.find((x) => x.name === fileName);
-      if (f) return f.label;
+      for (const n of String(playlistName || "").split("+")) {
+        const p = mediaInfo.playlists.find((x) => x.name === n);
+        const f = p && p.files.find((x) => x.name === fileName);
+        if (f) return f.label;
+      }
     }
     return (fileName || "").replace(/\.[^.]+$/, "");
   }
@@ -418,7 +442,11 @@
     else if (p.paused) { pill.textContent = "Paused"; pill.className = "pill paused"; }
     else { pill.textContent = "Playing"; pill.className = "pill on"; }
 
-    if (playing) {
+    if (playing && p.mode === "pattern") {
+      $("now-title").textContent = p.pattern === "grid" ? "Grid test pattern" : "White test pattern";
+      $("now-sub").textContent = "For lining up the projector. Press Go dark or play a show when you are done.";
+      $("now-progress").hidden = true;
+    } else if (playing) {
       $("now-title").textContent = (p.mode === "once" || p.single) ? fileLabel(p.playlist, p.file) : labelFor(p.playlist);
       let sub = p.mode === "once" ? "Plays once, then the screen goes dark." : p.single ? "Looping just this one, from " + labelFor(p.playlist) + "." : fileLabel(p.playlist, p.file);
       if (p.mode === "loop" && p.playlist_count > 1 && p.playlist_pos != null)
@@ -439,7 +467,7 @@
       if (Date.now() - (pv.dataset.at || 0) > 3000) { pv.dataset.at = Date.now(); $("preview").src = "/api/preview.jpg?t=" + Date.now() + (pin() ? "&pin=" + encodeURIComponent(pin()) : ""); }
     } else if (!playing) { pv.hidden = true; }
     $("btn-pause").textContent = p.paused ? "Resume" : "Pause";
-    $("btn-pause").disabled = !playing;
+    $("btn-pause").disabled = !playing || p.mode === "pattern";
     $("btn-next").disabled = !playing || p.mode !== "loop" || p.single || p.playlist_count < 2;
     $("btn-stop").disabled = !playing;
     $("btn-shuffle").textContent = p.shuffle ? "Shuffle: on" : "Shuffle: off";
@@ -513,6 +541,21 @@
 
   const expanded = new Set((pref("expanded") || "").split(",").filter(Boolean));
   function playerNow() { return status && status.player; }
+  let mixing = false; const mixPick = new Set();
+  function setMixing(on) {
+    mixing = on; if (!on) mixPick.clear();
+    $("mix-hint").hidden = !on; $("mixbar").hidden = !on; $("btn-mix").textContent = on ? "Pick shows below" : "Play several…";
+    $("btn-mix").disabled = on;
+    loadMedia();
+  }
+  $("btn-mix").onclick = () => setMixing(true);
+  $("btn-mix-cancel").onclick = () => setMixing(false);
+  $("btn-mix-go").onclick = async () => {
+    if (mixPick.size < 2) { toast("Pick at least two shows.", true); return; }
+    const names = mediaInfo.playlists.map((pl) => pl.name).filter((n) => mixPick.has(n));
+    const data = await act("/api/play", { playlist: names.join("+") }, "Playing " + names.map(labelFor).join(" + ") + ".");
+    if (data) setMixing(false);
+  };
 
   async function loadMedia() {
     try { mediaInfo = await api("/api/media"); } catch (e) { return; }
@@ -532,15 +575,23 @@
       sub.textContent = pl.mode === "once" ? (on.length ? count + ", each plays once" : "No movies yet")
         : (on.length ? count + ", loops all evening. Tap ▶ to play all." : (pl.files.length ? "Nothing switched on" : pl.exists ? "Empty, add videos from the studio" : "No folder yet"));
       name.appendChild(b); name.appendChild(sub); head.appendChild(name);
-      if (pl.mode === "loop" && on.length) {
-        const go = document.createElement("button"); go.className = "tiny"; go.style.fontSize = "18px"; go.style.color = "var(--accent)"; go.textContent = "▶"; go.title = "Play all";
-        go.onclick = (e) => { e.stopPropagation(); act("/api/play", { playlist: pl.name }); };
-        head.appendChild(go);
+      const pickable = mixing && on.length > 0;
+      if (mixing) {
+        const tick = document.createElement("span"); tick.className = "tick"; tick.textContent = mixPick.has(pl.name) ? "✓" : ""; head.appendChild(tick);
+        if (!pickable) head.classList.add("off");
+        head.classList.toggle("picked", mixPick.has(pl.name));
+        head.onclick = () => { if (!pickable) return; if (mixPick.has(pl.name)) mixPick.delete(pl.name); else mixPick.add(pl.name); loadMedia(); };
+      } else {
+        if (pl.mode === "loop" && on.length) {
+          const go = document.createElement("button"); go.className = "tiny"; go.style.fontSize = "18px"; go.style.color = "var(--accent)"; go.textContent = "▶"; go.title = "Play all";
+          go.onclick = (e) => { e.stopPropagation(); act("/api/play", { playlist: pl.name }); };
+          head.appendChild(go);
+        }
+        const chev = document.createElement("span"); chev.className = "chev"; chev.textContent = expanded.has(pl.name) ? "▾" : "▸"; head.appendChild(chev);
+        head.onclick = () => { if (expanded.has(pl.name)) expanded.delete(pl.name); else expanded.add(pl.name); pref("expanded", [...expanded].join(",")); loadMedia(); };
       }
-      const chev = document.createElement("span"); chev.className = "chev"; chev.textContent = expanded.has(pl.name) ? "▾" : "▸"; head.appendChild(chev);
-      head.onclick = () => { if (expanded.has(pl.name)) expanded.delete(pl.name); else expanded.add(pl.name); pref("expanded", [...expanded].join(",")); loadMedia(); };
       holder.appendChild(head);
-      if (expanded.has(pl.name)) {
+      if (expanded.has(pl.name) && !mixing) {
         const list = document.createElement("div"); list.className = "sublist";
         if (!pl.files.length) { const e = document.createElement("div"); e.className = "muted"; e.textContent = "Nothing here yet. Send something from the studio."; list.appendChild(e); }
         pl.files.forEach((f) => {
@@ -568,7 +619,7 @@
     const p = playerNow();
     document.querySelectorAll("#playlists .item").forEach((el) => {
       let on = false;
-      if (p && p.mode !== "off" && el.dataset.playlist === p.playlist) {
+      if (p && p.mode !== "off" && p.mode !== "pattern" && String(p.playlist || "").split("+").indexOf(el.dataset.playlist) >= 0) {
         if (el.dataset.file) on = p.file === el.dataset.file && (p.mode === "once" || p.single);
         else on = p.mode === "loop" && !p.single;
       }
@@ -728,6 +779,8 @@
   $("btn-next").onclick = () => act("/api/next");
   $("btn-shuffle").onclick = () => act("/api/shuffle", { shuffle: !status.player.shuffle }, status.player.shuffle ? "Playing in order." : "Playing in a random order.");
   $("btn-stop").onclick = () => act("/api/stop", {}, "Screen is dark.");
+  $("btn-pattern-white").onclick = () => act("/api/pattern", { kind: "white" }, "White screen is up. Go dark when you are done.");
+  $("btn-pattern-grid").onclick = () => act("/api/pattern", { kind: "grid" }, "Grid is up. Go dark when you are done.");
   $("btn-proj-on").onclick = () => act("/api/projector", { power: "on" });
   $("btn-proj-off").onclick = () => act("/api/projector", { power: "off" });
   $("btn-proj-mute").onclick = () => act("/api/projector", { mute: !status.projector.muted });
