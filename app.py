@@ -411,6 +411,13 @@ class Player:
             pass
         return hints
 
+    @staticmethod
+    def _card_has_hdmi(device):
+        card = os.path.basename(device)
+        try:
+            return any(e.startswith(card + "-HDMI-A-") for e in os.listdir("/sys/class/drm"))
+        except OSError:
+            return True
     def _mpv_args(self):
         args = [
             "--fullscreen", "--force-window=yes", "--keep-open=no",
@@ -424,9 +431,16 @@ class Player:
         video_args = list(self.cfg.data.get("mpv_video_args", []))
         if "--gpu-context=drm" in video_args or "--vo=drm" in video_args:
             for hint in self._drm_hints():
-                key = hint.split("=")[0]
-                if not any(a.startswith(key + "=") for a in video_args):
+                key, value = hint.split("=", 1)
+                given = [a for a in video_args if a.startswith(key + "=")]
+                if not given:
                     video_args.append(hint)
+                elif key == "--drm-device" and given[0] != hint and not self._card_has_hdmi(given[0].split("=", 1)[1]):
+                    # the two /dev/dri cards can swap numbers between boots; a stale
+                    # device in config.json would mean sound but no picture
+                    log.warning("config.json names %s but the HDMI port is on %s this boot; using that",
+                                given[0].split("=", 1)[1], value)
+                    video_args = [a for a in video_args if not a.startswith(key + "=")] + [hint]
         args += video_args
         device = self.cfg.data.get("audio_device") or "auto"
         if device != "auto":
@@ -522,6 +536,10 @@ class Player:
                         self.alerts.send("stall", "Balcony: playback froze",
                                          "The video froze and the player is being restarted.")
                         self.mpv.kill()
+                    elif self._blind():
+                        log.error("Playing, but nothing has reached the HDMI output for 20 seconds; "
+                                  "restarting mpv and looking for the HDMI port again")
+                        self.mpv.kill()
                     else:
                         continue
                 recent = [t for t in self.restarts if time.time() - t < 120]
@@ -553,6 +571,18 @@ class Player:
                 elif self.state.get("mode") in ("once", "pattern"):
                     self.state.update(mode="off", file=None)
 
+    def _blind(self):
+        """True when a video has been playing for 20 s with no picture output at all
+        (mpv's video output never came up, e.g. it was pointed at the wrong card)."""
+        if self.state.get("mode") == "off" or self.mpv.get("pause", False) or self.mpv.get("idle-active", False) \
+                or self.mpv.get("vo-configured", False) or self.mpv.get("video-format") is None:
+            self._blind_since = None
+            return False
+        if getattr(self, "_blind_since", None) is None:
+            self._blind_since = time.time()
+            return False
+        return time.time() - self._blind_since > 20
+
     def _stalled(self):
         """True when something should be playing but the clock hasn't moved for 30 s."""
         if self.state.get("mode") in ("off", "pattern"):      # a still test pattern has no clock
@@ -583,8 +613,11 @@ class Player:
 
     def _on_event(self, ev):
         name = ev.get("event")
+        if name == "start-file":
+            # remembered here because by the time end-file arrives, "path" may already be the next file
+            self._current_path = self.mpv.get("path") or ""
         if name == "end-file" and ev.get("reason") == "error":
-            path = self.mpv.get("path") or ""
+            path = getattr(self, "_current_path", "") or self.mpv.get("path") or ""
             base = os.path.basename(path) if path else "a file"
             reason = ev.get("file_error", "unknown problem")
             self.file_errors[base] = reason

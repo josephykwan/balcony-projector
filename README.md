@@ -232,9 +232,13 @@ journalctl -u balcony-projector -f
 Things that only show up on the real hardware, and where to change them:
 
 - **No picture at all.** The Pi keeps the HDMI output on even with the projector
-  off, and picks the graphics device with the HDMI ports by itself. If the
-  projector is on the second micro-HDMI port, add `--drm-connector=HDMI-A-2` to
-  `mpv_video_args` in `config.json`. If video stutters, remove `--hwdec=auto-safe`.
+  off, and picks the graphics device with the HDMI ports by itself at every start
+  (the two devices can swap numbers between reboots, so do not pin
+  `--drm-device` in `config.json`; if it is pinned wrongly the player now
+  overrides it and says so in the log). If the projector is on the second
+  micro-HDMI port, add `--drm-connector=HDMI-A-2` to `mpv_video_args`. If the
+  sound plays but the screen stays black, the player notices after 20 seconds
+  and restarts itself. If video stutters, remove `--hwdec=auto-safe`.
 - **No sound.** Pick the output under Settings, or set `audio_device` in
   `config.json` (run `mpv --audio-device=help` on the Pi to see the names). For a
   Bluetooth speaker, `./pair-speaker.sh --status`. If pairing ends in
